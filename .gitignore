@@ -12,6 +12,7 @@ env/
 build/
 dist/
 output/
+samples/
 *.mcpack
 *.mcaddon
 *.jar

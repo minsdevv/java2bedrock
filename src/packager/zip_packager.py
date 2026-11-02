@@ -21,6 +21,7 @@ from ..converter.block_builder import (
     build_bedrock_blocks_json,
     build_geyser_block_mappings_v1,
 )
+from ..converter.font_builder import convert_java_bitmap_fonts
 from ..converter.furniture_builder import (
     build_bedrock_furniture_entity,
     build_bedrock_furniture_geometry,
@@ -75,6 +76,7 @@ class ConversionResult:
     total_blocks: int = 0
     total_furniture: int = 0
     total_mobs: int = 0
+    total_font_glyphs: int = 0
     block_mappings_path: Optional[Path] = None
     furniture_registry_path: Optional[Path] = None
     mob_registry_path: Optional[Path] = None
@@ -439,6 +441,9 @@ def convert_java_pack(
                 encoding="utf-8",
             )
 
+        # --- Custom Font Bitmap Glyphs (font/glyph_XX.png) ---
+        total_font_glyphs = convert_java_bitmap_fonts(pack_root, bedrock_dir)
+
         # Write manifest.json
         manifest_doc = build_bedrock_manifest(meta.name, meta.description)
         (bedrock_dir / "manifest.json").write_text(
@@ -511,6 +516,7 @@ def convert_java_pack(
             total_blocks=len(custom_blocks),
             total_furniture=len(furniture_list),
             total_mobs=len(mob_list),
+            total_font_glyphs=total_font_glyphs,
             block_mappings_path=block_mappings_path,
             furniture_registry_path=furniture_registry_path,
             mob_registry_path=mob_registry_path,

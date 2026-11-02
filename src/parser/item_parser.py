@@ -3,7 +3,16 @@
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
+import re
 from typing import Any, Dict, List, Optional, Tuple
+
+
+def load_json_lenient(path: Path) -> Dict[str, Any]:
+    """Load JSON while tolerating leading zeros in numbers (e.g. 010811) and trailing commas."""
+    raw = path.read_text(encoding="utf-8-sig", errors="replace")
+    cleaned = re.sub(r"(:\s*)0+([1-9]\d*)", r"\1\2", raw)
+    cleaned = re.sub(r",\s*([}\]])", r"\1", cleaned)
+    return json.loads(cleaned)
 
 
 @dataclass
@@ -66,6 +75,8 @@ def resolve_texture_path(pack_root: Path, tex_ref: str) -> Optional[Path]:
     if not tex_ref or tex_ref.startswith("#"):
         return None
     ns, rel_path = normalize_identifier(tex_ref)
+    if rel_path.startswith("textures/"):
+        rel_path = rel_path[len("textures/") :]
     if rel_path.endswith(".png"):
         rel_path = rel_path[:-4]
     candidate = pack_root / "assets" / ns / "textures" / f"{rel_path}.png"
@@ -91,7 +102,7 @@ def load_resolved_model_json(
         return {"parent": model_ref}
 
     try:
-        current = json.loads(model_path.read_text(encoding="utf-8-sig"))
+        current = load_json_lenient(model_path)
     except Exception:
         return {}
 
@@ -334,7 +345,7 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
             for item_file in sorted(items_dir.rglob("*.json")):
                 rel_item = item_file.relative_to(items_dir).with_suffix("").as_posix()
                 try:
-                    data = json.loads(item_file.read_text(encoding="utf-8-sig"))
+                    data = load_json_lenient(item_file)
                 except Exception:
                     continue
                 root_model = data.get("model")
@@ -360,6 +371,10 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
                     pack_root, root_model, java_base_item, initial_preds, found, bedrock_ns
                 )
                 for m in found:
+                    if m.bedrock_identifier in seen_bedrock_ids:
+                        base_slug = m.java_base_item.split(":")[-1]
+                        m.short_name = f"{base_slug}_{m.short_name}"
+                        m.bedrock_identifier = f"{bedrock_ns}:{m.short_name}"
                     if m.bedrock_identifier not in seen_bedrock_ids:
                         seen_bedrock_ids.add(m.bedrock_identifier)
                         parsed_models.append(m)
@@ -370,7 +385,7 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
         for model_file in sorted(mc_models_item_dir.rglob("*.json")):
             rel_item = model_file.relative_to(mc_models_item_dir).with_suffix("").as_posix()
             try:
-                data = json.loads(model_file.read_text(encoding="utf-8-sig"))
+                data = load_json_lenient(model_file)
             except Exception:
                 continue
 
@@ -425,8 +440,13 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
                     cmd_int=cmd_int,
                     bedrock_ns=bedrock_ns,
                 )
-                if parsed and parsed.bedrock_identifier not in seen_bedrock_ids:
-                    seen_bedrock_ids.add(parsed.bedrock_identifier)
-                    parsed_models.append(parsed)
+                if parsed:
+                    if parsed.bedrock_identifier in seen_bedrock_ids:
+                        base_slug = parsed.java_base_item.split(":")[-1]
+                        parsed.short_name = f"{base_slug}_{parsed.short_name}"
+                        parsed.bedrock_identifier = f"{bedrock_ns}:{parsed.short_name}"
+                    if parsed.bedrock_identifier not in seen_bedrock_ids:
+                        seen_bedrock_ids.add(parsed.bedrock_identifier)
+                        parsed_models.append(parsed)
 
     return parsed_models
