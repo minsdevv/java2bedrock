@@ -16,6 +16,17 @@ from ..converter.armor_builder import (
     resolve_armor_wear_texture,
 )
 from ..converter.attachable_builder import build_bedrock_attachable
+from ..converter.block_builder import (
+    build_bedrock_block_geometry,
+    build_bedrock_blocks_json,
+    build_geyser_block_mappings_v1,
+)
+from ..converter.furniture_builder import (
+    build_bedrock_furniture_entity,
+    build_bedrock_furniture_geometry,
+    build_furniture_registry,
+    build_furniture_render_controller,
+)
 from ..converter.geometry_builder import build_bedrock_geometry
 from ..converter.math_utils import build_display_animation
 from ..converter.texture_processor import (
@@ -25,6 +36,10 @@ from ..converter.texture_processor import (
 from ..mappings.geyser_mappings import (
     build_geyser_item_mappings_v1,
     build_geyser_item_mappings_v2,
+)
+from ..parser.block_parser import (
+    parse_java_pack_blocks,
+    parse_java_pack_furniture,
 )
 from ..parser.item_parser import (
     ParsedJavaModel,
@@ -49,6 +64,10 @@ class ConversionResult:
     total_items: int
     items_3d: int
     items_2d: int
+    total_blocks: int = 0
+    total_furniture: int = 0
+    block_mappings_path: Optional[Path] = None
+    furniture_registry_path: Optional[Path] = None
     warnings: List[str] = field(default_factory=list)
 
 
@@ -226,6 +245,137 @@ def convert_java_pack(
                 "textures": tex_rel_no_ext,
             }
 
+        # --- Phase 3A: Custom Blocks ---
+        custom_blocks = parse_java_pack_blocks(pack_root, bedrock_ns=bedrock_ns)
+        terrain_texture_atlas: Dict[str, Any] = {}
+        for blk in custom_blocks:
+            blk_tex_rel = f"textures/blocks/{bedrock_ns}/{blk.short_name}"
+            blk_tex_dest = bedrock_dir / f"{blk_tex_rel}.png"
+            blk_tex_dest.parent.mkdir(parents=True, exist_ok=True)
+
+            temp_blk_model = ParsedJavaModel(
+                model_id=blk.model_id,
+                java_base_item=blk.base_block,
+                bedrock_identifier=blk.bedrock_identifier,
+                short_name=blk.short_name,
+                is_3d=not blk.is_unit_cube,
+                textures=blk.textures,
+                elements=blk.elements,
+            )
+            atlas_img, tex_w, tex_h, uv_offsets = build_model_texture_atlas(
+                pack_root, temp_blk_model
+            )
+            if atlas_img is not None:
+                atlas_img.save(blk_tex_dest)
+            else:
+                img = Image.new("RGBA", (16, 16), (255, 0, 255, 255))
+                img.save(blk_tex_dest)
+                tex_w, tex_h = 16, 16
+                uv_offsets = {}
+
+            terrain_key = f"j2b_block_{blk.short_name}"
+            terrain_texture_atlas[terrain_key] = {
+                "textures": blk_tex_rel,
+            }
+
+            if not blk.is_unit_cube:
+                blk_geo = build_bedrock_block_geometry(
+                    blk, tex_width=tex_w, tex_height=tex_h, uv_offsets=uv_offsets
+                )
+                blk_geo_path = (
+                    bedrock_dir
+                    / "models"
+                    / "blocks"
+                    / bedrock_ns
+                    / f"{blk.short_name}.geo.json"
+                )
+                blk_geo_path.parent.mkdir(parents=True, exist_ok=True)
+                blk_geo_path.write_text(
+                    json.dumps(blk_geo, indent=2), encoding="utf-8"
+                )
+
+        if custom_blocks:
+            blocks_json_doc = build_bedrock_blocks_json(custom_blocks)
+            (bedrock_dir / "blocks.json").write_text(
+                json.dumps(blocks_json_doc, indent=2), encoding="utf-8"
+            )
+            terrain_tex_doc = {
+                "resource_pack_name": meta.name,
+                "texture_name": "atlas.terrain",
+                "padding": 8,
+                "num_mip_levels": 4,
+                "texture_data": terrain_texture_atlas,
+            }
+            terrain_tex_path = bedrock_dir / "textures" / "terrain_texture.json"
+            terrain_tex_path.parent.mkdir(parents=True, exist_ok=True)
+            terrain_tex_path.write_text(
+                json.dumps(terrain_tex_doc, indent=2), encoding="utf-8"
+            )
+
+        # --- Phase 3B: Display Furniture ---
+        furniture_list = parse_java_pack_furniture(pack_root, bedrock_ns=bedrock_ns)
+        for furn in furniture_list:
+            furn_tex_rel = f"textures/entity/furniture/{bedrock_ns}/{furn.short_name}"
+            furn_tex_dest = bedrock_dir / f"{furn_tex_rel}.png"
+            furn_tex_dest.parent.mkdir(parents=True, exist_ok=True)
+
+            temp_furn_model = ParsedJavaModel(
+                model_id=furn.model_id,
+                java_base_item=furn.java_base_item,
+                bedrock_identifier=furn.bedrock_entity_id,
+                short_name=furn.short_name,
+                is_3d=True,
+                textures=furn.textures,
+                elements=furn.elements,
+            )
+            atlas_img, tex_w, tex_h, uv_offsets = build_model_texture_atlas(
+                pack_root, temp_furn_model
+            )
+            if atlas_img is not None:
+                atlas_img.save(furn_tex_dest)
+            else:
+                img = Image.new("RGBA", (16, 16), (255, 0, 255, 255))
+                img.save(furn_tex_dest)
+                tex_w, tex_h = 16, 16
+                uv_offsets = {}
+
+            furn_geo = build_bedrock_furniture_geometry(
+                furn, tex_width=tex_w, tex_height=tex_h, uv_offsets=uv_offsets
+            )
+            furn_geo_path = (
+                bedrock_dir
+                / "models"
+                / "entity"
+                / "furniture"
+                / f"{furn.short_name}.geo.json"
+            )
+            furn_geo_path.parent.mkdir(parents=True, exist_ok=True)
+            furn_geo_path.write_text(json.dumps(furn_geo, indent=2), encoding="utf-8")
+
+            furn_entity_doc = build_bedrock_furniture_entity(furn, furn_tex_rel)
+            furn_ent_path = (
+                bedrock_dir
+                / "entity"
+                / "furniture"
+                / f"{furn.short_name}.entity.json"
+            )
+            furn_ent_path.parent.mkdir(parents=True, exist_ok=True)
+            furn_ent_path.write_text(
+                json.dumps(furn_entity_doc, indent=2), encoding="utf-8"
+            )
+
+        if furniture_list:
+            rc_path = (
+                bedrock_dir
+                / "render_controllers"
+                / "furniture.render_controllers.json"
+            )
+            rc_path.parent.mkdir(parents=True, exist_ok=True)
+            rc_path.write_text(
+                json.dumps(build_furniture_render_controller(), indent=2),
+                encoding="utf-8",
+            )
+
         # Write manifest.json
         manifest_doc = build_bedrock_manifest(meta.name, meta.description)
         (bedrock_dir / "manifest.json").write_text(
@@ -242,7 +392,7 @@ def convert_java_pack(
         item_tex_path.parent.mkdir(parents=True, exist_ok=True)
         item_tex_path.write_text(json.dumps(item_tex_doc, indent=2), encoding="utf-8")
 
-        # Write Geyser Custom Mappings (v2 and v1)
+        # Write Geyser Custom Mappings (v2, v1, blocks, furniture_registry)
         mappings_dir = output_dir / "custom_mappings"
         mappings_dir.mkdir(parents=True, exist_ok=True)
 
@@ -253,6 +403,22 @@ def convert_java_pack(
         mappings_v1 = build_geyser_item_mappings_v1(models)
         mappings_v1_path = mappings_dir / "items_v1.json"
         mappings_v1_path.write_text(json.dumps(mappings_v1, indent=2), encoding="utf-8")
+
+        block_mappings_path: Optional[Path] = None
+        if custom_blocks:
+            block_mappings_doc = build_geyser_block_mappings_v1(custom_blocks)
+            block_mappings_path = mappings_dir / "blocks.json"
+            block_mappings_path.write_text(
+                json.dumps(block_mappings_doc, indent=2), encoding="utf-8"
+            )
+
+        furniture_registry_path: Optional[Path] = None
+        if furniture_list:
+            furn_reg_doc = build_furniture_registry(furniture_list)
+            furniture_registry_path = mappings_dir / "furniture_registry.json"
+            furniture_registry_path.write_text(
+                json.dumps(furn_reg_doc, indent=2), encoding="utf-8"
+            )
 
         # Package .mcpack
         mcpack_path = output_dir / f"{meta.name}.mcpack"
@@ -271,6 +437,10 @@ def convert_java_pack(
             total_items=len(models),
             items_3d=count_3d,
             items_2d=count_2d,
+            total_blocks=len(custom_blocks),
+            total_furniture=len(furniture_list),
+            block_mappings_path=block_mappings_path,
+            furniture_registry_path=furniture_registry_path,
             warnings=warnings,
         )
     finally:

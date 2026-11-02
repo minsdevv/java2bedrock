@@ -6,6 +6,17 @@ from .armor_builder import (
     resolve_armor_wear_texture,
 )
 from .attachable_builder import build_bedrock_attachable
+from .block_builder import (
+    build_bedrock_block_geometry,
+    build_bedrock_blocks_json,
+    build_geyser_block_mappings_v1,
+)
+from .furniture_builder import (
+    build_bedrock_furniture_entity,
+    build_bedrock_furniture_geometry,
+    build_furniture_registry,
+    build_furniture_render_controller,
+)
 from .geometry_builder import build_bedrock_geometry
 from .math_utils import (
     build_display_animation,
