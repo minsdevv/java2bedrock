@@ -1,0 +1,168 @@
+name: "Convert Java Resource Pack via GitHub Issue"
+
+on:
+  issues:
+    types: [opened, edited, labeled]
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+
+permissions:
+  contents: write
+  issues: write
+
+jobs:
+  unit-tests:
+    name: "Run Converter Test Suite"
+    if: github.event_name == 'push' || github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Run Pytest
+        run: pytest -v
+
+  convert-from-issue:
+    name: "Convert Pack from Issue Request"
+    if: >
+      github.event_name == 'issues' &&
+      contains(github.event.issue.labels.*.name, 'conversion-request') &&
+      github.event.issue.state == 'open'
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout Converter Repository
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+
+      - name: Install Dependencies
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements.txt
+
+      - name: Parse Issue Body & Notify Start
+        id: parse_issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const body = context.payload.issue.body || "";
+            const issueNumber = context.payload.issue.number;
+
+            function extractField(headerText) {
+              const regex = new RegExp(`### ${headerText}\\s+([^\\n#]+)`, "i");
+              const m = body.match(regex);
+              if (!m) return "";
+              const val = m[1].trim();
+              return val === "_No response_" ? "" : val;
+            }
+
+            const packUrl = extractField("🔗 Direct Download URL của Java Resource Pack \\(\\.zip\\)") ||
+                            (body.match(/https?:\/\/[^\s)"']+/i) || [""])[0];
+            const packName = extractField("🏷️ Tên Bedrock Resource Pack đầu ra") || `Pack_Issue_${issueNumber}`;
+            const namespace = extractField("🔑 Bedrock Namespace Prefix") || "j2b";
+
+            if (!packUrl) {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: issueNumber,
+                body: "❌ **Lỗi:** Không tìm thấy Direct Download URL hợp lệ trong nội dung Issue. Vui lòng kiểm tra lại đường dẫn file `.zip`!"
+              });
+              core.setFailed("Missing pack download URL");
+              return;
+            }
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: `⏳ **Đang tiến hành chuyển đổi Resource Pack...**\n- **URL nguồn:** ${packUrl}\n- **Tên Pack đầu ra:** \`${packName}\`\n- **Namespace:** \`${namespace}\``
+            });
+
+            core.setOutput("pack_url", packUrl);
+            core.setOutput("pack_name", packName.replace(/[^a-zA-Z0-9_-]/g, "_"));
+            core.setOutput("namespace", namespace.replace(/[^a-z0-9_]/g, "") || "j2b");
+
+      - name: Download Java Resource Pack
+        env:
+          PACK_URL: ${{ steps.parse_issue.outputs.pack_url }}
+        run: |
+          mkdir -p /tmp/j2b_work
+          curl -L --fail --retry 3 -o /tmp/j2b_work/input_pack.zip "$PACK_URL"
+
+      - name: Execute Java2Bedrock Universal Converter
+        env:
+          PACK_NAME: ${{ steps.parse_issue.outputs.pack_name }}
+          NAMESPACE: ${{ steps.parse_issue.outputs.namespace }}
+        run: |
+          python cli.py \
+            --input /tmp/j2b_work/input_pack.zip \
+            --output /tmp/j2b_work/output \
+            --name "$PACK_NAME" \
+            --namespace "$NAMESPACE" \
+            --summary-markdown /tmp/j2b_work/summary.md \
+            --summary-json /tmp/j2b_work/summary.json
+          cd /tmp/j2b_work/output
+          zip -r "/tmp/j2b_work/${PACK_NAME}_Geyser_Bundle.zip" "${PACK_NAME}.mcpack" custom_mappings/
+
+      - name: Upload Converted Artifact
+        id: upload_artifact
+        uses: actions/upload-artifact@v4
+        with:
+          name: ${{ steps.parse_issue.outputs.pack_name }}_Bedrock_Bundle
+          path: |
+            /tmp/j2b_work/output/*.mcpack
+            /tmp/j2b_work/output/custom_mappings/*.json
+            /tmp/j2b_work/*_Geyser_Bundle.zip
+          retention-days: 14
+
+      - name: Reply with Download Link & Close Issue
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const fs = require("fs");
+            const issueNumber = context.payload.issue.number;
+            const summaryMd = fs.readFileSync("/tmp/j2b_work/summary.md", "utf8");
+            const runUrl = `${context.serverUrl}/${context.repo.owner}/${context.repo.repo}/actions/runs/${context.runId}`;
+
+            const commentBody = [
+              summaryMd,
+              "---",
+              "### 📥 Tải Xuống Kết Quả",
+              `- 🔗 **[Tải trọn bộ .mcpack + Geyser Mappings tại trang GitHub Action Artifacts](${runUrl})** *(Artifact ID: \`${steps.upload_artifact.outputs['artifact-id']}\`)*`,
+              "",
+              "#### Hướng dẫn cài đặt lên Geyser-Spigot (Minecraft 26.3):",
+              "1. Copy file `.mcpack` vào thư mục `plugins/Geyser-Spigot/packs/`.",
+              "2. Copy file `custom_mappings/items_v2.json` vào thư mục `plugins/Geyser-Spigot/custom_mappings/`.",
+              "3. Chạy lệnh `/geyser reload` hoặc khởi động lại server."
+            ].join("\n");
+
+            await github.rest.issues.createComment({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              body: commentBody
+            });
+
+            await github.rest.issues.update({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: issueNumber,
+              state: "closed",
+              state_reason: "completed"
+            });

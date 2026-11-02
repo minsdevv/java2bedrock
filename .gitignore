@@ -1,0 +1,27 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+.venv/
+venv/
+env/
+
+# Build / Output artifacts
+build/
+dist/
+output/
+*.mcpack
+*.mcaddon
+*.jar
+!extension/gradle/wrapper/gradle-wrapper.jar
+
+# Test cache
+.pytest_cache/
+tests/tmp_*/
+
+# IDE
+.vscode/
+.idea/
+*.swp

@@ -1,0 +1,50 @@
+name: "📦 Convert Java Resource Pack to Bedrock (.mcpack)"
+description: "Tự động chuyển đổi Java Resource Pack (1.14 - 26.3+) sang Bedrock .mcpack và Geyser Custom Mappings ngay trên GitHub"
+title: "[Convert]: "
+labels: ["conversion-request"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ### 🚀 Yêu cầu chuyển đổi Java Resource Pack sang Bedrock & GeyserMC
+        Điền thông tin bên dưới và nhấn **Submit new issue**. Hệ thống GitHub Actions sẽ tự động tải pack, chuyển đổi sang định dạng `.mcpack` + `custom_mappings` (hỗ trợ cả Minecraft 26.3 / Geyser 2.11+) và phản hồi link tải ngay tại Issue này!
+
+  - type: input
+    id: pack_url
+    attributes:
+      label: "🔗 Direct Download URL của Java Resource Pack (.zip)"
+      description: "Dán link tải trực tiếp tới file .zip của Java Resource Pack (GitHub Release, Dropbox ?dl=1, Discord/CDN direct link...)."
+      placeholder: "https://example.com/my-java-pack.zip"
+    validations:
+      required: true
+
+  - type: input
+    id: pack_name
+    attributes:
+      label: "🏷️ Tên Bedrock Resource Pack đầu ra"
+      description: "Tên viết liền không dấu cho file .mcpack (Để trống sẽ tự lấy theo tên file gốc)."
+      placeholder: "MyServerBedrockPack"
+    validations:
+      required: false
+
+  - type: input
+    id: namespace
+    attributes:
+      label: "🔑 Bedrock Namespace Prefix"
+      description: "Tiền tố định danh cho các item/block/entity trên Bedrock (Mặc định: j2b)."
+      value: "j2b"
+    validations:
+      required: false
+
+  - type: dropdown
+    id: geyser_format
+    attributes:
+      label: "⚙️ Phiên bản Geyser Custom Mappings"
+      description: "Chọn định dạng file mapping xuất ra cho thư mục plugins/Geyser-Spigot/custom_mappings/"
+      options:
+        - "Cả hai (Format v2 cho Geyser 2.11+ / MC 26.3 & Format v1 Legacy)"
+        - "Chỉ Format v2 (Minecraft 26.3 / 1.21.2+ Data Components)"
+        - "Chỉ Format v1 (Legacy CustomModelData)"
+      default: 0
+    validations:
+      required: true
