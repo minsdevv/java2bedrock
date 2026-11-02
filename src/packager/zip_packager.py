@@ -10,9 +10,18 @@ import zipfile
 
 from PIL import Image
 
+from ..converter.armor_builder import (
+    build_bedrock_armor_attachable,
+    detect_armor_slot,
+    resolve_armor_wear_texture,
+)
 from ..converter.attachable_builder import build_bedrock_attachable
 from ..converter.geometry_builder import build_bedrock_geometry
 from ..converter.math_utils import build_display_animation
+from ..converter.texture_processor import (
+    build_model_texture_atlas,
+    compose_2d_layered_texture,
+)
 from ..mappings.geyser_mappings import (
     build_geyser_item_mappings_v1,
     build_geyser_item_mappings_v2,
@@ -147,28 +156,25 @@ def convert_java_pack(
         count_2d = 0
 
         for model in models:
-            tex_src = _select_primary_texture(pack_root, model)
             tex_rel_no_ext = f"textures/items/{bedrock_ns}/{model.short_name}"
             tex_dest = bedrock_dir / f"{tex_rel_no_ext}.png"
             tex_dest.parent.mkdir(parents=True, exist_ok=True)
 
-            tex_w, tex_h = 16, 16
-            if tex_src and tex_src.is_file():
-                shutil.copy2(tex_src, tex_dest)
-                tex_w, tex_h = _get_image_size(tex_dest)
-            else:
-                warnings.append(f"Missing texture for model '{model.model_id}', generated placeholder.")
-                img = Image.new("RGBA", (16, 16), (255, 0, 255, 255))
-                img.save(tex_dest)
-
-            icon_key = f"j2b_{model.short_name}"
-            item_texture_atlas[icon_key] = {
-                "textures": tex_rel_no_ext,
-            }
-
             if model.is_3d:
                 count_3d += 1
-                geo_doc = build_bedrock_geometry(model, tex_width=tex_w, tex_height=tex_h)
+                atlas_img, tex_w, tex_h, uv_offsets = build_model_texture_atlas(pack_root, model)
+                if atlas_img is not None:
+                    atlas_img.save(tex_dest)
+                else:
+                    warnings.append(f"Missing texture for 3D model '{model.model_id}', generated placeholder.")
+                    img = Image.new("RGBA", (16, 16), (255, 0, 255, 255))
+                    img.save(tex_dest)
+                    tex_w, tex_h = 16, 16
+                    uv_offsets = {}
+
+                geo_doc = build_bedrock_geometry(
+                    model, tex_width=tex_w, tex_height=tex_h, uv_offsets=uv_offsets
+                )
                 geo_path = bedrock_dir / "models" / "entity" / bedrock_ns / f"{model.short_name}.geo.json"
                 geo_path.parent.mkdir(parents=True, exist_ok=True)
                 geo_path.write_text(json.dumps(geo_doc, indent=2), encoding="utf-8")
@@ -184,6 +190,41 @@ def convert_java_pack(
                 attach_path.write_text(json.dumps(attach_doc, indent=2), encoding="utf-8")
             else:
                 count_2d += 1
+                composed_img = compose_2d_layered_texture(pack_root, model)
+                if composed_img is not None:
+                    composed_img.save(tex_dest)
+                else:
+                    tex_src = _select_primary_texture(pack_root, model)
+                    if tex_src and tex_src.is_file():
+                        shutil.copy2(tex_src, tex_dest)
+                    else:
+                        warnings.append(f"Missing texture for model '{model.model_id}', generated placeholder.")
+                        img = Image.new("RGBA", (16, 16), (255, 0, 255, 255))
+                        img.save(tex_dest)
+
+                # Check if this 2D item is a custom armor piece / equipment
+                armor_slot = detect_armor_slot(model)
+                if armor_slot:
+                    wear_tex_src = resolve_armor_wear_texture(pack_root, model, armor_slot)
+                    if wear_tex_src and wear_tex_src.is_file():
+                        armor_tex_rel = f"textures/models/armor/{bedrock_ns}_{model.short_name}"
+                        armor_tex_dest = bedrock_dir / f"{armor_tex_rel}.png"
+                        armor_tex_dest.parent.mkdir(parents=True, exist_ok=True)
+                        shutil.copy2(wear_tex_src, armor_tex_dest)
+
+                        armor_attach_doc = build_bedrock_armor_attachable(
+                            model, armor_slot, armor_tex_rel
+                        )
+                        attach_path = bedrock_dir / "attachables" / bedrock_ns / f"{model.short_name}.json"
+                        attach_path.parent.mkdir(parents=True, exist_ok=True)
+                        attach_path.write_text(
+                            json.dumps(armor_attach_doc, indent=2), encoding="utf-8"
+                        )
+
+            icon_key = f"j2b_{model.short_name}"
+            item_texture_atlas[icon_key] = {
+                "textures": tex_rel_no_ext,
+            }
 
         # Write manifest.json
         manifest_doc = build_bedrock_manifest(meta.name, meta.description)
