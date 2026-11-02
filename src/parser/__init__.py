@@ -1,5 +1,12 @@
 """Resource Pack Parsers."""
 
+from .bbmodel_parser import (
+    BBModelAnimation,
+    BBModelBone,
+    ParsedBBModelMob,
+    parse_bbmodel_file,
+    parse_java_pack_bbmodels,
+)
 from .block_parser import (
     ParsedCustomBlock,
     ParsedFurniture,

@@ -75,6 +75,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"   • Total Items     : {result.total_items} ({result.items_3d} 3D, {result.items_2d} 2D)")
     print(f"   • Custom Blocks   : {result.total_blocks}")
     print(f"   • Display Furn.   : {result.total_furniture}")
+    print(f"   • Custom Mobs     : {result.total_mobs}")
     print(f"   • Bedrock .mcpack : {result.mcpack_path}")
     print(f"   • Geyser v2 Map   : {result.mappings_v2_path}")
     print(f"   • Geyser v1 Map   : {result.mappings_v1_path}")
@@ -90,6 +91,7 @@ def main(argv: list[str] | None = None) -> int:
             "items_2d": result.items_2d,
             "total_blocks": result.total_blocks,
             "total_furniture": result.total_furniture,
+            "total_mobs": result.total_mobs,
             "mcpack_path": str(result.mcpack_path),
             "mappings_v2_path": str(result.mappings_v2_path),
             "mappings_v1_path": str(result.mappings_v1_path),
@@ -112,6 +114,7 @@ def main(argv: list[str] | None = None) -> int:
             f"| **Tổng số Custom Items** | **{result.total_items}** (`{result.items_3d}` 3D models, `{result.items_2d}` 2D sprites) |",
             f"| **Tổng số Custom Blocks** | **{result.total_blocks}** |",
             f"| **Tổng số Display Furniture** | **{result.total_furniture}** |",
+            f"| **Tổng số Custom Mobs (.bbmodel)** | **{result.total_mobs}** |",
             f"| **File Bedrock Pack** | `{result.mcpack_path.name}` |",
             f"| **Geyser Mappings (v2 / 26.3)** | `custom_mappings/items_v2.json` |",
             f"| **Geyser Mappings (v1 Legacy)** | `custom_mappings/items_v1.json` |",

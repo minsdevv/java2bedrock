@@ -1,0 +1,7 @@
+id: j2bcompanion
+name: J2BCompanion
+main: org.j2b.extension.J2BCompanionExtension
+api: 2.11.0
+version: 1.0.0
+authors:
+  - Java2Bedrock

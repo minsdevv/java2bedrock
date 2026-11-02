@@ -16,6 +16,7 @@ output/
 *.mcaddon
 *.jar
 !extension/gradle/wrapper/gradle-wrapper.jar
+!extension/J2BCompanionExtension.jar
 
 # Test cache
 .pytest_cache/

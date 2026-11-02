@@ -25,6 +25,13 @@ from .math_utils import (
     java_pivot_to_bedrock,
     java_rotation_to_bedrock,
 )
+from .mob_builder import (
+    build_bedrock_mob_animation_controller,
+    build_bedrock_mob_animations,
+    build_bedrock_mob_entity,
+    build_bedrock_mob_geometry,
+    build_mob_registry,
+)
 from .texture_processor import (
     apply_rgb_tint,
     build_model_texture_atlas,

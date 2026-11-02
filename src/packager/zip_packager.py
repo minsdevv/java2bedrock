@@ -29,6 +29,13 @@ from ..converter.furniture_builder import (
 )
 from ..converter.geometry_builder import build_bedrock_geometry
 from ..converter.math_utils import build_display_animation
+from ..converter.mob_builder import (
+    build_bedrock_mob_animation_controller,
+    build_bedrock_mob_animations,
+    build_bedrock_mob_entity,
+    build_bedrock_mob_geometry,
+    build_mob_registry,
+)
 from ..converter.texture_processor import (
     build_model_texture_atlas,
     compose_2d_layered_texture,
@@ -37,6 +44,7 @@ from ..mappings.geyser_mappings import (
     build_geyser_item_mappings_v1,
     build_geyser_item_mappings_v2,
 )
+from ..parser.bbmodel_parser import parse_java_pack_bbmodels
 from ..parser.block_parser import (
     parse_java_pack_blocks,
     parse_java_pack_furniture,
@@ -66,8 +74,10 @@ class ConversionResult:
     items_2d: int
     total_blocks: int = 0
     total_furniture: int = 0
+    total_mobs: int = 0
     block_mappings_path: Optional[Path] = None
     furniture_registry_path: Optional[Path] = None
+    mob_registry_path: Optional[Path] = None
     warnings: List[str] = field(default_factory=list)
 
 
@@ -364,7 +374,60 @@ def convert_java_pack(
                 json.dumps(furn_entity_doc, indent=2), encoding="utf-8"
             )
 
-        if furniture_list:
+        # --- Phase 4: Custom Mobs (.bbmodel) ---
+        mob_list = parse_java_pack_bbmodels(pack_root, bedrock_ns=bedrock_ns)
+        for mob in mob_list:
+            mob_tex_rel = f"textures/entity/mobs/{bedrock_ns}/{mob.mob_name}"
+            mob_tex_dest = bedrock_dir / f"{mob_tex_rel}.png"
+            mob_tex_dest.parent.mkdir(parents=True, exist_ok=True)
+            if mob.texture_image is not None:
+                mob.texture_image.save(mob_tex_dest)
+            else:
+                img = Image.new("RGBA", (mob.tex_width, mob.tex_height), (255, 0, 255, 255))
+                img.save(mob_tex_dest)
+
+            mob_geo = build_bedrock_mob_geometry(mob)
+            mob_geo_path = (
+                bedrock_dir
+                / "models"
+                / "entity"
+                / "mobs"
+                / f"{mob.mob_name}.geo.json"
+            )
+            mob_geo_path.parent.mkdir(parents=True, exist_ok=True)
+            mob_geo_path.write_text(json.dumps(mob_geo, indent=2), encoding="utf-8")
+
+            mob_anim = build_bedrock_mob_animations(mob)
+            mob_anim_path = (
+                bedrock_dir
+                / "animations"
+                / "mobs"
+                / f"{mob.mob_name}.animation.json"
+            )
+            mob_anim_path.parent.mkdir(parents=True, exist_ok=True)
+            mob_anim_path.write_text(json.dumps(mob_anim, indent=2), encoding="utf-8")
+
+            mob_ctrl = build_bedrock_mob_animation_controller(mob)
+            mob_ctrl_path = (
+                bedrock_dir
+                / "animation_controllers"
+                / "mobs"
+                / f"{mob.mob_name}.animation_controllers.json"
+            )
+            mob_ctrl_path.parent.mkdir(parents=True, exist_ok=True)
+            mob_ctrl_path.write_text(json.dumps(mob_ctrl, indent=2), encoding="utf-8")
+
+            mob_ent = build_bedrock_mob_entity(mob, mob_tex_rel)
+            mob_ent_path = (
+                bedrock_dir
+                / "entity"
+                / "mobs"
+                / f"{mob.mob_name}.entity.json"
+            )
+            mob_ent_path.parent.mkdir(parents=True, exist_ok=True)
+            mob_ent_path.write_text(json.dumps(mob_ent, indent=2), encoding="utf-8")
+
+        if furniture_list or mob_list:
             rc_path = (
                 bedrock_dir
                 / "render_controllers"
@@ -392,7 +455,7 @@ def convert_java_pack(
         item_tex_path.parent.mkdir(parents=True, exist_ok=True)
         item_tex_path.write_text(json.dumps(item_tex_doc, indent=2), encoding="utf-8")
 
-        # Write Geyser Custom Mappings (v2, v1, blocks, furniture_registry)
+        # Write Geyser Custom Mappings (v2, v1, blocks, furniture_registry, mob_registry)
         mappings_dir = output_dir / "custom_mappings"
         mappings_dir.mkdir(parents=True, exist_ok=True)
 
@@ -420,6 +483,14 @@ def convert_java_pack(
                 json.dumps(furn_reg_doc, indent=2), encoding="utf-8"
             )
 
+        mob_registry_path: Optional[Path] = None
+        if mob_list:
+            mob_reg_doc = build_mob_registry(mob_list)
+            mob_registry_path = mappings_dir / "mob_registry.json"
+            mob_registry_path.write_text(
+                json.dumps(mob_reg_doc, indent=2), encoding="utf-8"
+            )
+
         # Package .mcpack
         mcpack_path = output_dir / f"{meta.name}.mcpack"
         with zipfile.ZipFile(mcpack_path, "w", compression=zipfile.ZIP_DEFLATED) as zf:
@@ -439,8 +510,10 @@ def convert_java_pack(
             items_2d=count_2d,
             total_blocks=len(custom_blocks),
             total_furniture=len(furniture_list),
+            total_mobs=len(mob_list),
             block_mappings_path=block_mappings_path,
             furniture_registry_path=furniture_registry_path,
+            mob_registry_path=mob_registry_path,
             warnings=warnings,
         )
     finally:
