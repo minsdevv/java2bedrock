@@ -178,6 +178,7 @@ def test_phase1_full_conversion(tmp_path: Path) -> None:
     sword_defs = v2_data["items"]["minecraft:diamond_sword"]
     assert len(sword_defs) == 2
     katana_def = next(d for d in sword_defs if "ruby_katana" in d["bedrock_identifier"])
+    assert katana_def["model"] == "minecraft:diamond_sword"
     assert katana_def["predicate"][0]["type"] == "range_dispatch"
     assert katana_def["predicate"][0]["threshold"] == 1001.0
     assert katana_def["bedrock_options"]["display_handheld"] is True

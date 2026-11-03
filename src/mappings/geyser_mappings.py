@@ -49,13 +49,23 @@ def build_geyser_item_mappings_v2(models: List[ParsedJavaModel]) -> Dict[str, An
             or "axe" in model.java_base_item
         )
 
+        # In Geyser v2 mappings, 'model' in a single definition specifies the item's
+        # `minecraft:item_model` data component (which defaults to `java_base_item`,
+        # e.g. "minecraft:diamond_sword", unless overridden by a custom item_model).
+        item_model_component = model.java_base_item
+        for p in model.predicates:
+            if p.property_name == "item_model" and p.match_value:
+                raw_im = str(p.match_value)
+                item_model_component = raw_im if ":" in raw_im else f"minecraft:{raw_im}"
+                break
+
         entry: Dict[str, Any] = {
             "type": "definition",
             "bedrock_identifier": model.bedrock_identifier,
             "model": (
-                model.model_id
-                if ":" in model.model_id
-                else f"minecraft:{model.model_id}"
+                item_model_component
+                if ":" in item_model_component
+                else f"minecraft:{item_model_component}"
             ),
             "bedrock_options": {
                 "icon": icon_name,
