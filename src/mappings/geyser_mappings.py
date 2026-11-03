@@ -71,7 +71,7 @@ def build_geyser_item_mappings_v2(models: List[ParsedJavaModel]) -> Dict[str, An
             if p.property_name != "item_model"
         ]
         if valid_preds:
-            entry["predicate_strategy"] = "all"
+            entry["predicate_strategy"] = "and"
             entry["predicate"] = valid_preds
 
         if model.components:
