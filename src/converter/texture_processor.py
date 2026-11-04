@@ -241,6 +241,24 @@ def build_model_texture_atlas(
     return atlas, total_w, max_h, uv_offsets
 
 
+def _solve_affine(
+    src_tri: List[Tuple[float, float]], dst_tri: List[Tuple[float, float]]
+) -> Optional[Tuple[float, ...]]:
+    """Solve 2D affine transform matrix mapping src_tri to dst_tri."""
+    (x0, y0), (x1, y1), (x2, y2) = dst_tri
+    (u0, v0), (u1, v1), (u2, v2) = src_tri
+    det = (x0 - x2) * (y1 - y2) - (x1 - x2) * (y0 - y2)
+    if abs(det) < 1e-6:
+        return None
+    a = ((u0 - u2) * (y1 - y2) - (u1 - u2) * (y0 - y2)) / det
+    b = ((x0 - x2) * (u1 - u2) - (x1 - x2) * (u0 - u2)) / det
+    c = u0 - a * x0 - b * y0
+    d = ((v0 - v2) * (y1 - y2) - (v1 - v2) * (y0 - y2)) / det
+    e = ((x0 - x2) * (v1 - v2) - (x1 - x2) * (v0 - v2)) / det
+    f = v0 - d * x0 - e * y0
+    return (a, b, c, d, e, f)
+
+
 def render_model_isometric(
     pack_root: Path,
     model: ParsedJavaModel,
@@ -363,6 +381,7 @@ def render_model_isometric(
         tex = q["tex_img"]
         shade = q["shade"]
         fill_color = None
+        painted = False
 
         if tex:
             uv = q["uv"]
@@ -382,24 +401,50 @@ def render_model_isometric(
                 if t_rgb:
                     sub = apply_rgb_tint(sub, t_rgb)
 
-            avg_c = sub.resize((1, 1), Image.Resampling.BOX).getpixel((0, 0))
-            if avg_c[3] > 0:
-                r = int(avg_c[0] * shade)
-                g = int(avg_c[1] * shade)
-                b = int(avg_c[2] * shade)
-                fill_color = (r, g, b, avg_c[3])
+            # Try textured quad mapping with affine transform
+            if sub.width > 0 and sub.height > 0:
+                sw, sh = sub.size
+                if shade != 1.0:
+                    sr, sg, sb, sa = sub.split()
+                    sr = sr.point(lambda p: int(p * shade))
+                    sg = sg.point(lambda p: int(p * shade))
+                    sb = sb.point(lambda p: int(p * shade))
+                    sub_shaded = Image.merge("RGBA", (sr, sg, sb, sa))
+                else:
+                    sub_shaded = sub
 
-        if not fill_color:
-            c = int(180 * shade)
-            fill_color = (c, c, c, 255)
+                params = _solve_affine([(0, 0), (sw, 0), (0, sh)], [pts_2d[0], pts_2d[1], pts_2d[3]])
+                if params:
+                    try:
+                        warped = sub_shaded.transform(canvas.size, Image.Transform.AFFINE, params, resample=Image.Resampling.NEAREST)
+                        mask = Image.new("L", canvas.size, 0)
+                        ImageDraw.Draw(mask).polygon(pts_2d, fill=255)
+                        canvas.paste(warped, (0, 0), mask)
+                        draw.polygon(pts_2d, fill=None, outline=(0, 0, 0, 45))
+                        painted = True
+                    except Exception:
+                        painted = False
 
-        outline_color = (
-            int(fill_color[0] * 0.8),
-            int(fill_color[1] * 0.8),
-            int(fill_color[2] * 0.8),
-            fill_color[3],
-        )
-        draw.polygon(pts_2d, fill=fill_color, outline=outline_color)
+            if not painted:
+                avg_c = sub.resize((1, 1), Image.Resampling.BOX).getpixel((0, 0))
+                if avg_c[3] > 0:
+                    r = int(avg_c[0] * shade)
+                    g = int(avg_c[1] * shade)
+                    b = int(avg_c[2] * shade)
+                    fill_color = (r, g, b, avg_c[3])
+
+        if not painted:
+            if not fill_color:
+                c = int(180 * shade)
+                fill_color = (c, c, c, 255)
+
+            outline_color = (
+                int(fill_color[0] * 0.8),
+                int(fill_color[1] * 0.8),
+                int(fill_color[2] * 0.8),
+                fill_color[3],
+            )
+            draw.polygon(pts_2d, fill=fill_color, outline=outline_color)
 
     # Check if anything was rendered
     if canvas.split()[3].getextrema()[1] == 0:
