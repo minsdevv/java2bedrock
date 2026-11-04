@@ -181,9 +181,14 @@ class TestPhase2(unittest.TestCase):
             self.assertEqual(res.total_items, 3)
 
             # 1. Verify 3D hammer atlas is 32x16 and handle UV is shifted by +16 on X
-            hammer_tex = res.bedrock_pack_dir / "textures" / "items" / "j2b" / "nexo_war_hammer_10.png"
-            with Image.open(hammer_tex) as im:
+            hammer_model_tex = res.bedrock_pack_dir / "textures" / "models" / "entity" / "j2b" / "nexo_war_hammer_10.png"
+            with Image.open(hammer_model_tex) as im:
                 self.assertEqual(im.size, (32, 16))
+
+            # Verify isometric GUI icon was generated at 32x32
+            hammer_gui_icon = res.bedrock_pack_dir / "textures" / "items" / "j2b" / "nexo_war_hammer_10.png"
+            with Image.open(hammer_gui_icon) as im:
+                self.assertEqual(im.size, (32, 32))
 
             hammer_geo = json.loads(
                 (res.bedrock_pack_dir / "models" / "entity" / "j2b" / "nexo_war_hammer_10.geo.json").read_text(

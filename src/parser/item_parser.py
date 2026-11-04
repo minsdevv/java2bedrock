@@ -85,7 +85,7 @@ def resolve_model_path(pack_root: Path, model_ref: str) -> Optional[Path]:
 def resolve_texture_path(
     pack_root: Path,
     tex_ref: str,
-    allow_vanilla_fallback: bool = False,
+    allow_vanilla_fallback: bool = True,
 ) -> Optional[Path]:
     """Locate the PNG file for a given texture reference like 'nexo:item/katana'."""
     if not tex_ref or tex_ref.startswith("#"):
@@ -100,7 +100,7 @@ def resolve_texture_path(
         candidate = pack_root / "assets" / cand_ns / "textures" / f"{rel_path}.png"
         if candidate.is_file():
             return candidate
-    if allow_vanilla_fallback and "minecraft" in cands:
+    if allow_vanilla_fallback and any(c in ("minecraft", "") for c in cands):
         vanilla_cache = Path("/tmp/j2b_vanilla_assets/assets/minecraft/textures") / f"{rel_path}.png"
         if vanilla_cache.is_file():
             return vanilla_cache
@@ -268,7 +268,7 @@ def _build_parsed_model(
     is_3d = bool(elements)
 
     # Ignore pure vanilla models with neither elements nor custom textures on disk
-    if not is_3d and not any(resolve_texture_path(pack_root, t) for t in textures.values()):
+    if not is_3d and not predicates and not any(resolve_texture_path(pack_root, t, allow_vanilla_fallback=False) for t in textures.values()):
         return None
 
     short_name = _make_short_name(model_ref, cmd_int)

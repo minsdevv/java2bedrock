@@ -41,6 +41,7 @@ from ..converter.mob_builder import (
 from ..converter.texture_processor import (
     build_model_texture_atlas,
     compose_2d_layered_texture,
+    render_model_isometric,
 )
 from ..mappings.geyser_mappings import (
     build_geyser_item_mappings_v1,
@@ -195,14 +196,24 @@ def convert_java_pack(
             if model.is_3d:
                 count_3d += 1
                 atlas_img, tex_w, tex_h, uv_offsets = build_model_texture_atlas(pack_root, model)
+
+                # Attachable texture path for 3D model entity rendering
+                entity_tex_rel = f"textures/models/entity/{bedrock_ns}/{model.short_name}"
+                entity_tex_dest = bedrock_dir / f"{entity_tex_rel}.png"
+                entity_tex_dest.parent.mkdir(parents=True, exist_ok=True)
+
                 if atlas_img is not None:
-                    atlas_img.save(tex_dest)
+                    atlas_img.save(entity_tex_dest)
                 else:
                     warnings.append(f"Missing texture for 3D model '{model.model_id}', generated placeholder.")
                     img = Image.new("RGBA", (16, 16), (255, 0, 255, 255))
-                    img.save(tex_dest)
+                    img.save(entity_tex_dest)
                     tex_w, tex_h = 16, 16
                     uv_offsets = {}
+
+                # Render isometric 2D icon for GUI/inventory slot
+                iso_icon = render_model_isometric(pack_root, model, size=32)
+                iso_icon.save(tex_dest)
 
                 geo_doc = build_bedrock_geometry(
                     model, tex_width=tex_w, tex_height=tex_h, uv_offsets=uv_offsets
@@ -216,7 +227,7 @@ def convert_java_pack(
                 anim_path.parent.mkdir(parents=True, exist_ok=True)
                 anim_path.write_text(json.dumps(anim_doc, indent=2), encoding="utf-8")
 
-                attach_doc = build_bedrock_attachable(model, tex_rel_no_ext, anim_map)
+                attach_doc = build_bedrock_attachable(model, entity_tex_rel, anim_map)
                 attach_path = bedrock_dir / "attachables" / bedrock_ns / f"{model.short_name}.json"
                 attach_path.parent.mkdir(parents=True, exist_ok=True)
                 attach_path.write_text(json.dumps(attach_doc, indent=2), encoding="utf-8")
