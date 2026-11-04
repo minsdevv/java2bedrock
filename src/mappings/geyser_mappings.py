@@ -84,8 +84,26 @@ def build_geyser_item_mappings_v2(models: List[ParsedJavaModel]) -> Dict[str, An
             entry["predicate_strategy"] = "and"
             entry["predicate"] = valid_preds
 
-        if model.components:
-            entry["components"] = model.components
+        components = dict(model.components) if model.components else {}
+        if (
+            model.is_3d
+            and "minecraft:equippable" not in components
+            and not any(
+                armor_kw in model.java_base_item
+                for armor_kw in ("helmet", "chestplate", "leggings", "boots")
+            )
+            and (
+                "head" in model.display
+                or any(
+                    kw in model.model_id
+                    for kw in ("hat/", "back/", "iadeco:", "iavehicles:", "furniture")
+                )
+            )
+        ):
+            components["minecraft:equippable"] = {"slot": "head"}
+
+        if components:
+            entry["components"] = components
 
         items_by_java_id.setdefault(model.java_base_item, []).append(entry)
 

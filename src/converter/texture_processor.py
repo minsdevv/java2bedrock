@@ -132,7 +132,7 @@ def build_model_texture_atlas(
         tex_ref = model.textures.get(k)
         if not tex_ref:
             continue
-        p = resolve_texture_path(pack_root, tex_ref)
+        p = resolve_texture_path(pack_root, tex_ref, allow_vanilla_fallback=True)
         if p and p.is_file():
             key_to_path[k] = p
             if p not in loaded_by_path:

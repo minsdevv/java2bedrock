@@ -161,14 +161,18 @@ def parse_java_pack_blocks(
                 continue
             ns, rel_model = normalize_identifier(model_ref)
             # Skip unmodified vanilla note_block / mushroom models
-            if ns == "minecraft" and rel_model in (
-                "block/note_block",
-                "block/tripwire_ns",
-                "block/tripwire_n",
-                "block/mushroom_stem",
-                "block/brown_mushroom_block",
-                "block/red_mushroom_block",
-                "block/template_single_face",
+            if ns == "minecraft" and (
+                rel_model.startswith("block/original/")
+                or rel_model
+                in (
+                    "block/note_block",
+                    "block/tripwire_ns",
+                    "block/tripwire_n",
+                    "block/mushroom_stem",
+                    "block/brown_mushroom_block",
+                    "block/red_mushroom_block",
+                    "block/template_single_face",
+                )
             ):
                 continue
 

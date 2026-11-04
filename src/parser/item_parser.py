@@ -55,22 +55,38 @@ def normalize_identifier(raw_id: str, default_namespace: str = "minecraft") -> T
     return default_namespace, clean
 
 
+def _candidate_namespaces(ns: str) -> List[str]:
+    """Return candidate namespaces, stripping ItemsAdder's '_b_' and '_' atlas prefixes."""
+    cands = [ns]
+    stripped = re.sub(r"^_(?:b_)?", "", ns)
+    if stripped and stripped not in cands:
+        cands.append(stripped)
+    if ns.startswith("_") and ns.lstrip("_") not in cands:
+        cands.append(ns.lstrip("_"))
+    return cands
+
+
 def resolve_model_path(pack_root: Path, model_ref: str) -> Optional[Path]:
     """Locate the JSON file for a given model reference like 'nexo:item/katana'."""
     ns, rel_path = normalize_identifier(model_ref)
     if rel_path.endswith(".json"):
         rel_path = rel_path[:-5]
-    candidate = pack_root / "assets" / ns / "models" / f"{rel_path}.json"
-    if candidate.is_file():
-        return candidate
-    # Fallback without 'models/' if already prefixed
-    candidate_alt = pack_root / "assets" / ns / f"{rel_path}.json"
-    if candidate_alt.is_file():
-        return candidate_alt
+    for cand_ns in _candidate_namespaces(ns):
+        candidate = pack_root / "assets" / cand_ns / "models" / f"{rel_path}.json"
+        if candidate.is_file():
+            return candidate
+        # Fallback without 'models/' if already prefixed
+        candidate_alt = pack_root / "assets" / cand_ns / f"{rel_path}.json"
+        if candidate_alt.is_file():
+            return candidate_alt
     return None
 
 
-def resolve_texture_path(pack_root: Path, tex_ref: str) -> Optional[Path]:
+def resolve_texture_path(
+    pack_root: Path,
+    tex_ref: str,
+    allow_vanilla_fallback: bool = False,
+) -> Optional[Path]:
     """Locate the PNG file for a given texture reference like 'nexo:item/katana'."""
     if not tex_ref or tex_ref.startswith("#"):
         return None
@@ -79,9 +95,15 @@ def resolve_texture_path(pack_root: Path, tex_ref: str) -> Optional[Path]:
         rel_path = rel_path[len("textures/") :]
     if rel_path.endswith(".png"):
         rel_path = rel_path[:-4]
-    candidate = pack_root / "assets" / ns / "textures" / f"{rel_path}.png"
-    if candidate.is_file():
-        return candidate
+    cands = _candidate_namespaces(ns)
+    for cand_ns in cands:
+        candidate = pack_root / "assets" / cand_ns / "textures" / f"{rel_path}.png"
+        if candidate.is_file():
+            return candidate
+    if allow_vanilla_fallback and "minecraft" in cands:
+        vanilla_cache = Path("/tmp/j2b_vanilla_assets/assets/minecraft/textures") / f"{rel_path}.png"
+        if vanilla_cache.is_file():
+            return vanilla_cache
     return None
 
 
@@ -340,10 +362,14 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
         if not ns_dir.is_dir():
             continue
         ns = ns_dir.name
+        if ns in ("_iainternal",):
+            continue
         items_dir = ns_dir / "items"
         if items_dir.is_dir():
             for item_file in sorted(items_dir.rglob("*.json")):
                 rel_item = item_file.relative_to(items_dir).with_suffix("").as_posix()
+                if rel_item == "block_outline" or rel_item.startswith("base/"):
+                    continue
                 try:
                     data = load_json_lenient(item_file)
                 except Exception:
@@ -384,6 +410,8 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
     if mc_models_item_dir.is_dir():
         for model_file in sorted(mc_models_item_dir.rglob("*.json")):
             rel_item = model_file.relative_to(mc_models_item_dir).with_suffix("").as_posix()
+            if rel_item == "block_outline" or rel_item.startswith("base/"):
+                continue
             try:
                 data = load_json_lenient(model_file)
             except Exception:
@@ -404,6 +432,7 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
 
                 rules: List[ItemPredicateRule] = []
                 cmd_int: Optional[int] = None
+                skip_override = False
                 for k, v in pred_dict.items():
                     if k == "custom_model_data":
                         cmd_int = int(v)
@@ -415,15 +444,15 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
                                 index=0,
                             )
                         )
-                    elif k in ("damage", "pull", "time", "angle"):
+                    elif k == "damage":
                         rules.append(
                             ItemPredicateRule(
                                 kind="range_dispatch",
-                                property_name=k,
+                                property_name="damage",
                                 threshold=float(v),
                             )
                         )
-                    elif k in ("damaged", "pulling", "throwing", "broken"):
+                    elif k in ("damaged", "broken"):
                         rules.append(
                             ItemPredicateRule(
                                 kind="condition",
@@ -431,6 +460,15 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
                                 expected_bool=bool(int(v) == 1 if isinstance(v, (int, float)) else v),
                             )
                         )
+                    elif k == "cast":
+                        if bool(int(v) == 1 if isinstance(v, (int, float)) else v):
+                            skip_override = True
+                    elif k in ("pull", "pulling", "throwing", "blocking", "time", "angle", "cooldown", "charged", "firework", "lefthanded"):
+                        # Secondary animation state frame (e.g. bow pulling frame 0/1/2)
+                        if float(v) > 0:
+                            skip_override = True
+                if skip_override or not rules:
+                    continue
 
                 parsed = _build_parsed_model(
                     pack_root=pack_root,
