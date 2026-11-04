@@ -2,7 +2,10 @@
 
 import json
 from pathlib import Path
+import shutil
 from typing import Any, Dict, Optional
+
+from PIL import Image
 
 from ..parser.item_parser import ParsedJavaModel, normalize_identifier
 
@@ -149,3 +152,63 @@ def build_bedrock_armor_attachable(
             }
         },
     }
+
+
+KNOWN_ARMOR_HEX_COLORS = {
+    "ruby": (255, 0, 0),
+    "bronze": (211, 104, 35),
+    "dark_amethyst": (83, 7, 102),
+    "obsidian": (78, 63, 124),
+    "mysterious": (87, 14, 17),
+}
+
+
+def process_bedrock_armor_texture(
+    src_path: Path,
+    dest_path: Path,
+    model: ParsedJavaModel,
+) -> None:
+    """Normalize and tint armor layer texture for Bedrock's standard 2:1 armor UV mapping."""
+    dest_path.parent.mkdir(parents=True, exist_ok=True)
+    try:
+        with Image.open(src_path) as raw:
+            im = raw.convert("RGBA")
+            w, h = im.size
+
+            # If texture has 4:1 ratio (e.g. 128x32), split side-by-side frames (base and overlay)
+            if w == h * 4:
+                frame_w = w // 2
+                f1 = im.crop((0, 0, frame_w, h))
+                f2 = im.crop((frame_w, 0, w, h))
+
+                tint_color = None
+                for name, rgb in KNOWN_ARMOR_HEX_COLORS.items():
+                    if name in model.short_name:
+                        tint_color = rgb
+                        break
+
+                if tint_color:
+                    r, g, b = tint_color
+                    tinted_f1 = Image.new("RGBA", f1.size)
+                    tinted_pixels = []
+                    for p in f1.getdata():
+                        if p[3] > 0:
+                            gray = (p[0] + p[1] + p[2]) // 3
+                            nr = int((gray / 255.0) * r)
+                            ng = int((gray / 255.0) * g)
+                            nb = int((gray / 255.0) * b)
+                            tinted_pixels.append((nr, ng, nb, p[3]))
+                        else:
+                            tinted_pixels.append((0, 0, 0, 0))
+                    tinted_f1.putdata(tinted_pixels)
+                    out = Image.alpha_composite(tinted_f1, f2)
+                else:
+                    out = Image.alpha_composite(f1, f2)
+
+                out.save(dest_path)
+                return
+
+            im.save(dest_path)
+    except Exception:
+        shutil.copy2(src_path, dest_path)
+

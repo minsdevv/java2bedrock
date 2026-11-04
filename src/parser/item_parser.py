@@ -107,6 +107,31 @@ def resolve_texture_path(
     return None
 
 
+STANDARD_CUBE_ELEMENTS = [
+    {
+        "from": [0, 0, 0],
+        "to": [16, 16, 16],
+        "faces": {
+            "down": {"uv": [0, 0, 16, 16], "texture": "#down", "cullface": "down"},
+            "up": {"uv": [0, 0, 16, 16], "texture": "#up", "cullface": "up"},
+            "north": {"uv": [0, 0, 16, 16], "texture": "#north", "cullface": "north"},
+            "south": {"uv": [0, 0, 16, 16], "texture": "#south", "cullface": "south"},
+            "west": {"uv": [0, 0, 16, 16], "texture": "#west", "cullface": "west"},
+            "east": {"uv": [0, 0, 16, 16], "texture": "#east", "cullface": "east"},
+        },
+    }
+]
+
+STANDARD_BLOCK_DISPLAY = {
+    "gui": {"rotation": [30, 225, 0], "translation": [0, 0, 0], "scale": [0.625, 0.625, 0.625]},
+    "ground": {"rotation": [0, 0, 0], "translation": [0, 3, 0], "scale": [0.25, 0.25, 0.25]},
+    "fixed": {"rotation": [0, 0, 0], "translation": [0, 0, 0], "scale": [0.5, 0.5, 0.5]},
+    "thirdperson_righthand": {"rotation": [75, 45, 0], "translation": [0, 2.5, 0], "scale": [0.375, 0.375, 0.375]},
+    "firstperson_righthand": {"rotation": [0, 45, 0], "translation": [0, 0, 0], "scale": [0.4, 0.4, 0.4]},
+    "firstperson_lefthand": {"rotation": [0, 225, 0], "translation": [0, 0, 0], "scale": [0.4, 0.4, 0.4]},
+}
+
+
 def load_resolved_model_json(
     pack_root: Path,
     model_ref: str,
@@ -137,6 +162,29 @@ def load_resolved_model_json(
     if parent_rel in ("item/generated", "item/handheld", "item/handheld_rod", "builtin/generated", "builtin/entity"):
         merged = dict(current)
         merged["_root_parent"] = parent_rel
+        return merged
+
+    if parent_rel in (
+        "block/cube_all", "block/cube", "block/cube_column", "block/cube_bottom_top",
+        "block/orientable", "block/leaves", "block/cross", "block/tinted_cross"
+    ) or parent_rel.startswith("block/cube"):
+        merged = dict(current)
+        merged["_root_parent"] = parent_rel
+        if "elements" not in merged:
+            tex_map = dict(merged.get("textures", {}))
+            primary = (
+                tex_map.get("all")
+                or tex_map.get("texture")
+                or tex_map.get("layer0")
+                or (next(iter(tex_map.values())) if tex_map else "all")
+            )
+            for face in ("down", "up", "north", "south", "west", "east"):
+                if face not in tex_map:
+                    tex_map[face] = primary
+            merged["textures"] = tex_map
+            merged["elements"] = [dict(el) for el in STANDARD_CUBE_ELEMENTS]
+            if "display" not in merged:
+                merged["display"] = dict(STANDARD_BLOCK_DISPLAY)
         return merged
 
     parent_data = load_resolved_model_json(pack_root, parent_ref, visited)

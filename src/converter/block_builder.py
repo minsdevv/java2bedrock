@@ -88,7 +88,8 @@ def build_geyser_block_mappings_v1(blocks: List[ParsedCustomBlock]) -> Dict[str,
                     "translation": [0.0, 0.0, 0.0],
                 }
 
-            state_overrides[blk.state_predicate] = state_entry
+            clean_pred = blk.state_predicate.strip("[]")
+            state_overrides[clean_pred] = state_entry
 
         blocks_root[base_block] = {
             "name": f"j2b_{carrier_short}",

@@ -13,6 +13,7 @@ from PIL import Image
 from ..converter.armor_builder import (
     build_bedrock_armor_attachable,
     detect_armor_slot,
+    process_bedrock_armor_texture,
     resolve_armor_wear_texture,
 )
 from ..converter.attachable_builder import build_bedrock_attachable
@@ -241,7 +242,7 @@ def convert_java_pack(
                         armor_tex_rel = f"textures/models/armor/{bedrock_ns}_{model.short_name}"
                         armor_tex_dest = bedrock_dir / f"{armor_tex_rel}.png"
                         armor_tex_dest.parent.mkdir(parents=True, exist_ok=True)
-                        shutil.copy2(wear_tex_src, armor_tex_dest)
+                        process_bedrock_armor_texture(wear_tex_src, armor_tex_dest, model)
 
                         armor_attach_doc = build_bedrock_armor_attachable(
                             model, armor_slot, armor_tex_rel
@@ -256,6 +257,33 @@ def convert_java_pack(
             item_texture_atlas[icon_key] = {
                 "textures": tex_rel_no_ext,
             }
+
+            # Generate Bedrock client Item Definition (items/*.json)
+            armor_slot = detect_armor_slot(model)
+            item_def: Dict[str, Any] = {
+                "format_version": "1.20.20",
+                "minecraft:item": {
+                    "description": {
+                        "identifier": model.bedrock_identifier,
+                        "menu_category": {
+                            "category": "equipment" if armor_slot else "items",
+                        },
+                    },
+                    "components": {
+                        "minecraft:icon": {
+                            "texture": icon_key,
+                        },
+                    },
+                },
+            }
+            if armor_slot:
+                wear_slot = "slot.armor.chest" if armor_slot == "elytra" else f"slot.armor.{armor_slot}"
+                item_def["minecraft:item"]["components"]["minecraft:wearable"] = {
+                    "slot": wear_slot,
+                }
+            items_path = bedrock_dir / "items" / bedrock_ns / f"{model.short_name}.json"
+            items_path.parent.mkdir(parents=True, exist_ok=True)
+            items_path.write_text(json.dumps(item_def, indent=2), encoding="utf-8")
 
         # --- Phase 3A: Custom Blocks ---
         custom_blocks = parse_java_pack_blocks(pack_root, bedrock_ns=bedrock_ns)

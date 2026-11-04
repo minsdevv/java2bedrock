@@ -171,14 +171,14 @@ class TestPhase3(unittest.TestCase):
             self.assertTrue(nb_entry["only_override_states"])
             overrides = nb_entry["state_overrides"]
             self.assertTrue(
-                overrides["[instrument=harp,note=1,powered=false]"]["unit_cube"]
+                overrides["instrument=harp,note=1,powered=false"]["unit_cube"]
             )
             self.assertEqual(
-                overrides["[instrument=harp,note=2,powered=false]"]["geometry"],
+                overrides["instrument=harp,note=2,powered=false"]["geometry"],
                 "geometry.j2b.block_nexo_crystal_lantern",
             )
             self.assertEqual(
-                overrides["[instrument=harp,note=2,powered=false]"]["transformation"][
+                overrides["instrument=harp,note=2,powered=false"]["transformation"][
                     "rotation"
                 ],
                 [0, 90, 0],
