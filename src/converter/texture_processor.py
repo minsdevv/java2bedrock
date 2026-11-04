@@ -198,6 +198,10 @@ def build_model_texture_atlas(
             if p not in loaded_by_path:
                 with Image.open(p) as im:
                     img = im.convert("RGBA")
+                # If image is a vertical animated sprite strip (e.g. 16x96 with 6 stacked frames),
+                # crop the first square frame so static block and item models have crisp 1:1 UVs.
+                if img.height > img.width and img.height % img.width == 0:
+                    img = img.crop((0, 0, img.width, img.width))
                 # Apply tint if face has tintindex and model specifies tints
                 if k in face_tint_by_key:
                     tint_rgb = extract_tint_rgb_for_index(model.tints, face_tint_by_key[k])
@@ -259,7 +263,10 @@ def render_model_isometric(
         if p and p.is_file():
             try:
                 with Image.open(p) as raw:
-                    loaded_textures[k] = raw.convert("RGBA")
+                    loaded_im = raw.convert("RGBA")
+                    if loaded_im.height > loaded_im.width and loaded_im.height % loaded_im.width == 0:
+                        loaded_im = loaded_im.crop((0, 0, loaded_im.width, loaded_im.width))
+                    loaded_textures[k] = loaded_im
             except Exception:
                 pass
 

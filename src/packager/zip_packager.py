@@ -11,6 +11,7 @@ import zipfile
 from PIL import Image
 
 from ..converter.armor_builder import (
+    STANDARD_PLAYER_ARMOR_GEO_DOC,
     build_bedrock_armor_attachable,
     detect_armor_slot,
     process_bedrock_armor_texture,
@@ -482,6 +483,13 @@ def convert_java_pack(
 
         # --- Custom Font Bitmap Glyphs (font/glyph_XX.png) ---
         total_font_glyphs = convert_java_bitmap_fonts(pack_root, bedrock_dir)
+
+        # Write models/entity/player_armor.json to provide standard vanilla armor geometries for custom attachables
+        player_armor_geo_path = bedrock_dir / "models" / "entity" / "player_armor.json"
+        player_armor_geo_path.parent.mkdir(parents=True, exist_ok=True)
+        player_armor_geo_path.write_text(
+            json.dumps(STANDARD_PLAYER_ARMOR_GEO_DOC, indent=2), encoding="utf-8"
+        )
 
         # Write manifest.json
         manifest_doc = build_bedrock_manifest(meta.name, meta.description)

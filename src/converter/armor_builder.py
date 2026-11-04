@@ -34,6 +34,83 @@ BEDROCK_PARENT_SETUP = {
     "elytra": "v.chest_layer_visible = 0.0;",
 }
 
+STANDARD_PLAYER_ARMOR_GEO_DOC: Dict[str, Any] = {
+    "format_version": "1.8.0",
+    "geometry.player.armor.base": {
+        "visible_bounds_width": 2,
+        "visible_bounds_height": 2,
+        "visible_bounds_offset": [0, 1, 0],
+        "texturewidth": 64,
+        "textureheight": 32,
+        "bones": [
+            {"name": "body", "pivot": [0.0, 24.0, 0.0], "cubes": [{"origin": [-4.0, 12.0, -2.0], "size": [8, 12, 4], "uv": [16, 16]}], "parent": "waist"},
+            {"name": "waist", "neverRender": True, "pivot": [0.0, 12.0, 0.0]},
+            {"name": "head", "pivot": [0.0, 24.0, 0.0], "cubes": [{"origin": [-4.0, 24.0, -4.0], "size": [8, 8, 8], "uv": [0, 0]}], "parent": "body"},
+            {"name": "hat", "pivot": [0.0, 24.0, 0.0], "cubes": [{"origin": [-4.0, 24.0, -4.0], "size": [8, 8, 8], "uv": [32, 0], "inflate": 0.5}], "neverRender": True, "parent": "head"},
+            {"name": "rightArm", "pivot": [-5.0, 22.0, 0.0], "cubes": [{"origin": [-8.0, 12.0, -2.0], "size": [4, 12, 4], "uv": [40, 16]}], "parent": "body"},
+            {"name": "rightItem", "pivot": [-6, 15, 1], "neverRender": True, "parent": "rightArm"},
+            {"name": "leftArm", "pivot": [5.0, 22.0, 0.0], "cubes": [{"origin": [4.0, 12.0, -2.0], "size": [4, 12, 4], "uv": [40, 16]}], "mirror": True, "parent": "body"},
+            {"name": "rightLeg", "pivot": [-1.9, 12.0, 0.0], "cubes": [{"origin": [-3.9, 0.0, -2.0], "size": [4, 12, 4], "uv": [0, 16]}], "parent": "body"},
+            {"name": "leftLeg", "pivot": [1.9, 12.0, 0.0], "cubes": [{"origin": [-0.1, 0.0, -2.0], "size": [4, 12, 4], "uv": [0, 16]}], "mirror": True, "parent": "body"}
+        ]
+    },
+    "geometry.player.armor1:geometry.player.armor.base": {
+        "bones": [
+            {"name": "head", "inflate": 1.0},
+            {"name": "hat", "inflate": 1.5, "neverRender": False},
+            {"name": "body", "inflate": 1.01},
+            {"name": "rightArm", "inflate": 1.0},
+            {"name": "leftArm", "inflate": 1.0},
+            {"name": "rightLeg", "inflate": 1.0},
+            {"name": "leftLeg", "inflate": 1.0}
+        ]
+    },
+    "geometry.player.armor.helmet:geometry.player.armor1": {
+        "bones": [
+            {"name": "body", "reset": True},
+            {"name": "rightArm", "reset": True},
+            {"name": "leftArm", "reset": True},
+            {"name": "rightLeg", "reset": True},
+            {"name": "leftLeg", "reset": True}
+        ]
+    },
+    "geometry.player.armor.chestplate:geometry.player.armor1": {
+        "bones": [
+            {"name": "head", "reset": True},
+            {"name": "hat", "reset": True},
+            {"name": "rightLeg", "reset": True},
+            {"name": "leftLeg", "reset": True}
+        ]
+    },
+    "geometry.player.armor.boots:geometry.player.armor1": {
+        "bones": [
+            {"name": "head", "reset": True},
+            {"name": "hat", "reset": True},
+            {"name": "body", "reset": True},
+            {"name": "rightArm", "reset": True},
+            {"name": "leftArm", "reset": True}
+        ]
+    },
+    "geometry.player.armor2:geometry.player.armor.base": {
+        "bones": [
+            {"name": "head", "inflate": 0.5},
+            {"name": "body", "inflate": 0.5},
+            {"name": "rightArm", "inflate": 0.5},
+            {"name": "leftArm", "inflate": 0.5},
+            {"name": "rightLeg", "inflate": 0.49},
+            {"name": "leftLeg", "inflate": 0.49}
+        ]
+    },
+    "geometry.player.armor.leggings:geometry.player.armor2": {
+        "bones": [
+            {"name": "head", "reset": True},
+            {"name": "hat", "reset": True},
+            {"name": "rightArm", "reset": True},
+            {"name": "leftArm", "reset": True}
+        ]
+    }
+}
+
 
 def detect_armor_slot(model: ParsedJavaModel) -> Optional[str]:
     """Detect whether an item is an armor piece or elytra and return its slot ('head'|'chest'|'legs'|'feet'|'elytra')."""
@@ -132,13 +209,16 @@ def build_bedrock_armor_attachable(
         "minecraft:attachable": {
             "description": {
                 "identifier": model.bedrock_identifier,
+                "item": {
+                    model.bedrock_identifier: "query.owner_identifier == 'minecraft:player'"
+                },
                 "materials": {
                     "default": "armor",
                     "enchanted": "armor_enchanted",
                 },
                 "textures": {
                     "default": armor_texture_rel_path,
-                    "enchanted": "textures/misc/enchanted_item_glint",
+                    "enchanted": "textures/misc/enchanted_actor_glint",
                 },
                 "geometry": {
                     "default": geom,

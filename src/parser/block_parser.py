@@ -186,7 +186,12 @@ def parse_java_pack_blocks(
             if not elements and not any(resolve_texture_path(pack_root, t) for t in textures.values()):
                 continue
 
-            is_cube = _is_standard_unit_cube(parent, elements)
+            non_particle_textures = [
+                v for k, v in textures.items()
+                if k != "particle" and v and not v.startswith("#")
+            ]
+            unique_textures = set(non_particle_textures)
+            is_cube = _is_standard_unit_cube(parent, elements) and len(unique_textures) <= 1
             short_name = _make_block_short_name(model_ref)
             rot_x = int(apply_obj.get("x", 0))
             rot_y = int(apply_obj.get("y", 0))
