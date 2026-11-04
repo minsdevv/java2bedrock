@@ -22,6 +22,7 @@ def _load_json_lenient(path: Path) -> dict:
 def convert_java_bitmap_fonts(
     pack_root: Path,
     bedrock_dir: Path,
+    filter_gui_backgrounds: bool = True,
 ) -> int:
     """Convert Java assets/*/font/*.json bitmap glyphs (PUA U+E000..U+F8FF) into Bedrock font/glyph_XX.png sheets.
 
@@ -73,6 +74,13 @@ def convert_java_bitmap_fonts(
                         full_img = src_im.convert("RGBA")
                 except Exception:
                     continue
+
+                # Filter out oversized GUI background sheets (e.g. 192x170 chest backgrounds)
+                # that Java uses for title-based fullscreen overlays, as Bedrock cannot overflow them.
+                if filter_gui_backgrounds:
+                    prov_h = int(prov.get("height", 0))
+                    if prov_h > 48 or full_img.width > 96 or full_img.height > 96:
+                        continue
 
                 num_rows = len(chars_rows)
                 num_cols = max((len(r) for r in chars_rows), default=1)

@@ -41,6 +41,19 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Bedrock identifier namespace prefix (default: j2b).",
     )
     parser.add_argument(
+        "--bedrock-overlay",
+        action="append",
+        dest="bedrock_overlays",
+        default=None,
+        help="Optional path to custom Bedrock pack(s) (folder, .mcpack, or .zip) to merge into the output pack.",
+    )
+    parser.add_argument(
+        "--allow-gui-font-glyphs",
+        action="store_true",
+        default=False,
+        help="Allow oversized GUI background glyphs in font sheets (default: False, filters them out to prevent squished boxes in title).",
+    )
+    parser.add_argument(
         "--summary-json",
         default=None,
         help="Write a JSON conversion summary report to the specified file path.",
@@ -67,6 +80,8 @@ def main(argv: list[str] | None = None) -> int:
         output_dir=Path(args.output),
         pack_name=args.name,
         bedrock_ns=args.namespace,
+        bedrock_overlays=args.bedrock_overlays,
+        filter_gui_font_glyphs=not args.allow_gui_font_glyphs,
     )
 
     print(f"✅ Conversion completed for '{result.pack_meta.name}'")
@@ -77,6 +92,7 @@ def main(argv: list[str] | None = None) -> int:
     print(f"   • Display Furn.   : {result.total_furniture}")
     print(f"   • Custom Mobs     : {result.total_mobs}")
     print(f"   • Font Glyphs     : {result.total_font_glyphs}")
+    print(f"   • Sounds Audio    : {result.total_sounds}")
     print(f"   • Bedrock .mcpack : {result.mcpack_path}")
     print(f"   • Geyser v2 Map   : {result.mappings_v2_path}")
     print(f"   • Geyser v1 Map   : {result.mappings_v1_path}")
@@ -94,6 +110,7 @@ def main(argv: list[str] | None = None) -> int:
             "total_furniture": result.total_furniture,
             "total_mobs": result.total_mobs,
             "total_font_glyphs": result.total_font_glyphs,
+            "total_sounds": result.total_sounds,
             "mcpack_path": str(result.mcpack_path),
             "mappings_v2_path": str(result.mappings_v2_path),
             "mappings_v1_path": str(result.mappings_v1_path),

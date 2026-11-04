@@ -156,7 +156,7 @@ def build_display_animation(
     }
     anim_map["first_person"] = fp_anim_id
 
-    # Head slot (hats / helmets worn via head slot)
+    # Head slot (hats / helmets worn via head slot, or furniture placed on ArmorStand head)
     if "head" in display_settings:
         head_cfg = display_settings["head"]
         h_rot = head_cfg.get("rotation", [0.0, 0.0, 0.0])
@@ -168,7 +168,7 @@ def build_display_animation(
             "bones": {
                 root_bone: {
                     "rotation": [round(-float(h_rot[0]), 4), round(-float(h_rot[1]), 4), round(float(h_rot[2]), 4)],
-                    "position": [round(-float(h_trans[0]), 4), round(float(h_trans[1]) + 24.0, 4), round(float(h_trans[2]), 4)],
+                    "position": [round(-float(h_trans[0]), 4), round(float(h_trans[1]), 4), round(float(h_trans[2]), 4)],
                     "scale": [round(float(x), 4) for x in h_scale],
                 }
             },

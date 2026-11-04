@@ -32,6 +32,7 @@ from .mob_builder import (
     build_bedrock_mob_geometry,
     build_mob_registry,
 )
+from .sound_converter import convert_java_pack_sounds
 from .texture_processor import (
     apply_rgb_tint,
     build_model_texture_atlas,
@@ -46,6 +47,7 @@ __all__ = [
     "build_display_animation",
     "build_model_texture_atlas",
     "compose_2d_layered_texture",
+    "convert_java_pack_sounds",
     "detect_armor_slot",
     "java_box_to_bedrock_cube",
     "java_face_uv_to_bedrock",

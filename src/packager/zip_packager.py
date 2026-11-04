@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 import json
 from pathlib import Path
 import shutil
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any, Dict, List, Optional, Tuple, Union
 import uuid
 import zipfile
 
@@ -39,6 +39,7 @@ from ..converter.mob_builder import (
     build_bedrock_mob_geometry,
     build_mob_registry,
 )
+from ..converter.sound_converter import convert_java_pack_sounds
 from ..converter.texture_processor import (
     build_model_texture_atlas,
     compose_2d_layered_texture,
@@ -80,10 +81,86 @@ class ConversionResult:
     total_furniture: int = 0
     total_mobs: int = 0
     total_font_glyphs: int = 0
+    total_sounds: int = 0
     block_mappings_path: Optional[Path] = None
     furniture_registry_path: Optional[Path] = None
     mob_registry_path: Optional[Path] = None
     warnings: List[str] = field(default_factory=list)
+
+
+def _deep_merge_dict(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
+    """Recursively merge override dictionary into base dictionary."""
+    for k, v in override.items():
+        if k in base and isinstance(base[k], dict) and isinstance(v, dict):
+            _deep_merge_dict(base[k], v)
+        else:
+            base[k] = v
+    return base
+
+
+def merge_bedrock_overlay(overlay_path: Union[str, Path], target_dir: Path) -> List[str]:
+    """Merge a user-provided Bedrock pack (folder, .mcpack, or .zip) into the target bedrock pack directory."""
+    overlay_path = Path(overlay_path)
+    warnings: List[str] = []
+    if not overlay_path.exists():
+        warnings.append(f"Bedrock overlay path does not exist: {overlay_path}")
+        return warnings
+
+    temp_dir: Optional[Path] = None
+    if overlay_path.is_file() and overlay_path.suffix.lower() in (".zip", ".mcpack"):
+        temp_dir = target_dir / "_tmp_overlay"
+        if temp_dir.exists():
+            shutil.rmtree(temp_dir)
+        temp_dir.mkdir(parents=True, exist_ok=True)
+        try:
+            with zipfile.ZipFile(overlay_path, "r") as zf:
+                zf.extractall(temp_dir)
+            source_root = temp_dir
+        except Exception as e:
+            warnings.append(f"Failed to extract Bedrock overlay '{overlay_path}': {e}")
+            if temp_dir.exists():
+                shutil.rmtree(temp_dir)
+            return warnings
+    else:
+        source_root = overlay_path
+
+    try:
+        for src_file in source_root.rglob("*"):
+            if not src_file.is_file():
+                continue
+            rel = src_file.relative_to(source_root)
+            rel_str = rel.as_posix()
+
+            # Skip manifest so we preserve generated UUIDs and pack metadata
+            if rel_str == "manifest.json":
+                continue
+
+            dest_file = target_dir / rel
+            dest_file.parent.mkdir(parents=True, exist_ok=True)
+
+            # Known Bedrock JSON atlas/definitions that should be deep-merged rather than completely overwritten
+            merge_candidates = (
+                "textures/item_texture.json",
+                "textures/terrain_texture.json",
+                "sounds/sound_definitions.json",
+                "blocks.json",
+            )
+            if rel_str in merge_candidates and dest_file.is_file():
+                try:
+                    base_json = json.loads(dest_file.read_text(encoding="utf-8"))
+                    over_json = json.loads(src_file.read_text(encoding="utf-8"))
+                    _deep_merge_dict(base_json, over_json)
+                    dest_file.write_text(json.dumps(base_json, indent=2), encoding="utf-8")
+                except Exception as e:
+                    warnings.append(f"Failed to deep-merge JSON overlay '{rel_str}': {e}")
+                    shutil.copy2(src_file, dest_file)
+            else:
+                shutil.copy2(src_file, dest_file)
+    finally:
+        if temp_dir and temp_dir.exists():
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
+    return warnings
 
 
 def build_bedrock_manifest(name: str, description: str) -> Dict[str, Any]:
@@ -142,6 +219,8 @@ def convert_java_pack(
     output_dir: Path,
     pack_name: Optional[str] = None,
     bedrock_ns: str = "j2b",
+    bedrock_overlays: Optional[List[Union[str, Path]]] = None,
+    filter_gui_font_glyphs: bool = True,
 ) -> ConversionResult:
     """Convert a Java Resource Pack (directory or .zip) into a Bedrock .mcpack + Geyser mappings."""
     input_path = Path(input_path).resolve()
@@ -476,8 +555,16 @@ def convert_java_pack(
                 encoding="utf-8",
             )
 
+        # --- Custom Sounds (sounds/sound_definitions.json) ---
+        total_sounds, sound_warnings = convert_java_pack_sounds(
+            pack_root, bedrock_dir, bedrock_ns=bedrock_ns
+        )
+        warnings.extend(sound_warnings)
+
         # --- Custom Font Bitmap Glyphs (font/glyph_XX.png) ---
-        total_font_glyphs = convert_java_bitmap_fonts(pack_root, bedrock_dir)
+        total_font_glyphs = convert_java_bitmap_fonts(
+            pack_root, bedrock_dir, filter_gui_backgrounds=filter_gui_font_glyphs
+        )
 
         # Write models/entity/player_armor.json to provide standard vanilla armor geometries for custom attachables
         player_armor_geo_path = bedrock_dir / "models" / "entity" / "player_armor.json"
@@ -501,6 +588,12 @@ def convert_java_pack(
         item_tex_path = bedrock_dir / "textures" / "item_texture.json"
         item_tex_path.parent.mkdir(parents=True, exist_ok=True)
         item_tex_path.write_text(json.dumps(item_tex_doc, indent=2), encoding="utf-8")
+
+        # --- Merge User Bedrock Overlays (Custom UI, Texts, Title Logo, Splash, etc.) ---
+        if bedrock_overlays:
+            for overlay_path in bedrock_overlays:
+                overlay_warns = merge_bedrock_overlay(overlay_path, bedrock_dir)
+                warnings.extend(overlay_warns)
 
         # Write Geyser Custom Mappings (v2, v1, blocks, furniture_registry, mob_registry)
         mappings_dir = output_dir / "custom_mappings"
@@ -559,6 +652,7 @@ def convert_java_pack(
             total_furniture=len(furniture_list),
             total_mobs=len(mob_list),
             total_font_glyphs=total_font_glyphs,
+            total_sounds=total_sounds,
             block_mappings_path=block_mappings_path,
             furniture_registry_path=furniture_registry_path,
             mob_registry_path=mob_registry_path,
