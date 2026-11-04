@@ -346,11 +346,11 @@ def render_model_isometric(
             idx_list, shade = face_defs[f_name]
             pts_proj = [project_point(v[i]) for i in idx_list]
 
-            # Shoelace 2D screen-space area for back-face culling
+            # Shoelace 2D screen-space area for back-face culling (screen Y is inverted: -pts_proj[y])
             area = 0.0
             for i in range(4):
                 j = (i + 1) % 4
-                area += (pts_proj[i][0] * pts_proj[j][1]) - (pts_proj[j][0] * pts_proj[i][1])
+                area += (pts_proj[i][0] * (-pts_proj[j][1])) - (pts_proj[j][0] * (-pts_proj[i][1]))
             if area <= 0.0:
                 continue
 

@@ -133,9 +133,12 @@ def convert_java_pack_sounds(
                         "sounds": bedrock_sound_list if bedrock_sound_list else [],
                     }
 
-                    # Register both namespaced event and short event name
-                    namespaced_key = f"{ns}.{event_name}"
-                    sound_definitions[namespaced_key] = def_obj
+                    # Register all identifier variants so Geyser packet forwarding and Bedrock commands find it:
+                    # 1. Standard Java resource identifier (ns:event)
+                    # 2. Dot-separated namespaced key (ns.event)
+                    # 3. Short event name
+                    sound_definitions[f"{ns}:{event_name}"] = def_obj
+                    sound_definitions[f"{ns}.{event_name}"] = def_obj
                     if event_name not in sound_definitions:
                         sound_definitions[event_name] = def_obj
 
@@ -146,8 +149,15 @@ def convert_java_pack_sounds(
         if src_sounds_dir.is_dir():
             for audio_file in src_sounds_dir.rglob("*.ogg"):
                 rel_stem = str(audio_file.relative_to(src_sounds_dir).with_suffix("")).replace("\\", "/")
-                auto_key = f"{ns}.{rel_stem.replace('/', '.')}"
-                if auto_key not in sound_definitions:
+                auto_keys = [
+                    f"{ns}:{rel_stem.replace('/', '.')}",
+                    f"{ns}:{rel_stem}",
+                    f"{ns}.{rel_stem.replace('/', '.')}",
+                    f"{ns}.{rel_stem}",
+                    rel_stem.replace('/', '.'),
+                    rel_stem,
+                ]
+                if not any(k in sound_definitions for k in auto_keys):
                     category = _infer_category(rel_stem, rel_stem)
                     def_obj = {
                         "category": category,
@@ -159,9 +169,9 @@ def convert_java_pack_sounds(
                             }
                         ],
                     }
-                    sound_definitions[auto_key] = def_obj
-                    if rel_stem not in sound_definitions:
-                        sound_definitions[rel_stem] = def_obj
+                    for k in auto_keys:
+                        if k not in sound_definitions:
+                            sound_definitions[k] = def_obj
 
     if sound_definitions:
         doc = {
