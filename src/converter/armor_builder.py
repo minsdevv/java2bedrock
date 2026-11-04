@@ -108,6 +108,53 @@ STANDARD_PLAYER_ARMOR_GEO_DOC: Dict[str, Any] = {
             {"name": "rightArm", "reset": True},
             {"name": "leftArm", "reset": True}
         ]
+    },
+    # Standalone self-contained geometries without inheritance for Bedrock clients requiring flat rigs
+    "geometry.player.armor.helmet": {
+        "visible_bounds_width": 2,
+        "visible_bounds_height": 2,
+        "visible_bounds_offset": [0, 1, 0],
+        "texturewidth": 64,
+        "textureheight": 32,
+        "bones": [
+            {"name": "head", "pivot": [0.0, 24.0, 0.0], "cubes": [{"origin": [-4.0, 24.0, -4.0], "size": [8, 8, 8], "uv": [0, 0], "inflate": 1.0}]},
+            {"name": "hat", "pivot": [0.0, 24.0, 0.0], "cubes": [{"origin": [-4.0, 24.0, -4.0], "size": [8, 8, 8], "uv": [32, 0], "inflate": 1.5}], "neverRender": False, "parent": "head"}
+        ]
+    },
+    "geometry.player.armor.chestplate": {
+        "visible_bounds_width": 2,
+        "visible_bounds_height": 2,
+        "visible_bounds_offset": [0, 1, 0],
+        "texturewidth": 64,
+        "textureheight": 32,
+        "bones": [
+            {"name": "body", "pivot": [0.0, 24.0, 0.0], "cubes": [{"origin": [-4.0, 12.0, -2.0], "size": [8, 12, 4], "uv": [16, 16], "inflate": 1.01}]},
+            {"name": "rightArm", "pivot": [-5.0, 22.0, 0.0], "cubes": [{"origin": [-8.0, 12.0, -2.0], "size": [4, 12, 4], "uv": [40, 16], "inflate": 1.0}], "parent": "body"},
+            {"name": "leftArm", "pivot": [5.0, 22.0, 0.0], "cubes": [{"origin": [4.0, 12.0, -2.0], "size": [4, 12, 4], "uv": [40, 16], "inflate": 1.0}], "mirror": True, "parent": "body"}
+        ]
+    },
+    "geometry.player.armor.leggings": {
+        "visible_bounds_width": 2,
+        "visible_bounds_height": 2,
+        "visible_bounds_offset": [0, 1, 0],
+        "texturewidth": 64,
+        "textureheight": 32,
+        "bones": [
+            {"name": "body", "pivot": [0.0, 24.0, 0.0], "cubes": [{"origin": [-4.0, 12.0, -2.0], "size": [8, 12, 4], "uv": [16, 16], "inflate": 0.5}]},
+            {"name": "rightLeg", "pivot": [-1.9, 12.0, 0.0], "cubes": [{"origin": [-3.9, 0.0, -2.0], "size": [4, 12, 4], "uv": [0, 16], "inflate": 0.49}], "parent": "body"},
+            {"name": "leftLeg", "pivot": [1.9, 12.0, 0.0], "cubes": [{"origin": [-0.1, 0.0, -2.0], "size": [4, 12, 4], "uv": [0, 16], "inflate": 0.49}], "mirror": True, "parent": "body"}
+        ]
+    },
+    "geometry.player.armor.boots": {
+        "visible_bounds_width": 2,
+        "visible_bounds_height": 2,
+        "visible_bounds_offset": [0, 1, 0],
+        "texturewidth": 64,
+        "textureheight": 32,
+        "bones": [
+            {"name": "rightLeg", "pivot": [-1.9, 12.0, 0.0], "cubes": [{"origin": [-3.9, 0.0, -2.0], "size": [4, 12, 4], "uv": [0, 16], "inflate": 1.0}]},
+            {"name": "leftLeg", "pivot": [1.9, 12.0, 0.0], "cubes": [{"origin": [-0.1, 0.0, -2.0], "size": [4, 12, 4], "uv": [0, 16], "inflate": 1.0}], "mirror": True}
+        ]
     }
 }
 
@@ -218,7 +265,7 @@ def build_bedrock_armor_attachable(
                 },
                 "textures": {
                     "default": armor_texture_rel_path,
-                    "enchanted": "textures/misc/enchanted_actor_glint",
+                    "enchanted": "textures/misc/enchanted_item_glint",
                 },
                 "geometry": {
                     "default": geom,

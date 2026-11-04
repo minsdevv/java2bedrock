@@ -288,11 +288,6 @@ def convert_java_pack(
                     },
                 },
             }
-            if armor_slot:
-                wear_slot = "slot.armor.chest" if armor_slot == "elytra" else f"slot.armor.{armor_slot}"
-                item_def["minecraft:item"]["components"]["minecraft:wearable"] = {
-                    "slot": wear_slot,
-                }
             items_path = bedrock_dir / "items" / bedrock_ns / f"{model.short_name}.json"
             items_path.parent.mkdir(parents=True, exist_ok=True)
             items_path.write_text(json.dumps(item_def, indent=2), encoding="utf-8")
@@ -516,7 +511,7 @@ def convert_java_pack(
         mappings_v2_path.write_text(json.dumps(mappings_v2, indent=2), encoding="utf-8")
 
         mappings_v1 = build_geyser_item_mappings_v1(models)
-        mappings_v1_path = mappings_dir / "items_v1.json"
+        mappings_v1_path = mappings_dir / "items_v1_legacy.json.bak"
         mappings_v1_path.write_text(json.dumps(mappings_v1, indent=2), encoding="utf-8")
 
         block_mappings_path: Optional[Path] = None
