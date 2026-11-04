@@ -182,10 +182,21 @@ def _make_short_name(model_ref: str, cmd: Optional[int] = None) -> str:
     slug = path.replace("/", "_").replace("-", "_").replace(".", "_")
     if slug.startswith("item_"):
         slug = slug[5:]
-    if ns != "minecraft":
-        slug = f"{ns}_{slug}"
+    if slug.startswith("ia_auto_"):
+        slug = slug[8:]
+    clean_ns = ns.lstrip("_")
+    if clean_ns != "minecraft":
+        if clean_ns.startswith("ia") and len(clean_ns) > 2:
+            clean_ns = clean_ns[2:]
+        slug = f"{clean_ns}_{slug}"
     if cmd is not None and str(cmd) not in slug:
         slug = f"{slug}_{cmd}"
+    if len(slug) > 42:
+        if cmd is not None:
+            tail = f"_{cmd}"
+            slug = slug[: 42 - len(tail)] + tail
+        else:
+            slug = slug[:42]
     return slug.lower()
 
 
@@ -356,6 +367,7 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
 
     parsed_models: List[ParsedJavaModel] = []
     seen_bedrock_ids = set()
+    seen_item_keys: set[Tuple[str, Optional[int]]] = set()
 
     # 1. Scan Modern 26.x / 1.21.2+ Item Definitions: assets/<ns>/items/*.json
     for ns_dir in sorted(assets_dir.iterdir()):
@@ -397,9 +409,14 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
                     pack_root, root_model, java_base_item, initial_preds, found, bedrock_ns
                 )
                 for m in found:
+                    if m.custom_model_data_int is not None:
+                        key = (m.java_base_item, m.custom_model_data_int)
+                        if key in seen_item_keys:
+                            continue
+                        seen_item_keys.add(key)
                     if m.bedrock_identifier in seen_bedrock_ids:
                         base_slug = m.java_base_item.split(":")[-1]
-                        m.short_name = f"{base_slug}_{m.short_name}"
+                        m.short_name = f"{base_slug[:4]}_{m.short_name}"[:42]
                         m.bedrock_identifier = f"{bedrock_ns}:{m.short_name}"
                     if m.bedrock_identifier not in seen_bedrock_ids:
                         seen_bedrock_ids.add(m.bedrock_identifier)
@@ -479,9 +496,14 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
                     bedrock_ns=bedrock_ns,
                 )
                 if parsed:
+                    if parsed.custom_model_data_int is not None:
+                        key = (parsed.java_base_item, parsed.custom_model_data_int)
+                        if key in seen_item_keys:
+                            continue
+                        seen_item_keys.add(key)
                     if parsed.bedrock_identifier in seen_bedrock_ids:
                         base_slug = parsed.java_base_item.split(":")[-1]
-                        parsed.short_name = f"{base_slug}_{parsed.short_name}"
+                        parsed.short_name = f"{base_slug[:4]}_{parsed.short_name}"[:42]
                         parsed.bedrock_identifier = f"{bedrock_ns}:{parsed.short_name}"
                     if parsed.bedrock_identifier not in seen_bedrock_ids:
                         seen_bedrock_ids.add(parsed.bedrock_identifier)
