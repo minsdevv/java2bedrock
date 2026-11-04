@@ -299,8 +299,8 @@ def render_model_isometric(
     cy = (min_y + max_y) / 2.0
     cz = (min_z + max_z) / 2.0
 
-    # Isometric projection angles: Yaw 45 deg, Pitch 30 deg
-    yaw = math.radians(45)
+    # Minecraft Isometric GUI projection: Pitch 30 deg, Yaw -45 deg
+    yaw = math.radians(-45)
     pitch = math.radians(30)
     cos_y, sin_y = math.cos(yaw), math.sin(yaw)
     cos_p, sin_p = math.cos(pitch), math.sin(pitch)
@@ -319,16 +319,26 @@ def render_model_isometric(
         z2 = y1 * sin_p + z1 * cos_p
         return x2, y2, z2
 
-    max_dim = max(max_x - min_x, max_y - min_y, max_z - min_z, 1.0)
-    scale = (size * 0.70) / max_dim
+    def rotate_normal(norm: Tuple[float, float, float]) -> float:
+        nx, ny, nz = norm
+        x1 = nx * cos_y + nz * sin_y
+        y1 = ny
+        z1 = -nx * sin_y + nz * cos_y
+        z2 = y1 * sin_p + z1 * cos_p
+        return z2
 
+    # Scale: cube projected height is ~1.57 * max_dim
+    max_dim = max(max_x - min_x, max_y - min_y, max_z - min_z, 1.0)
+    scale = (size * 0.88) / (max_dim * 1.57)
+
+    # Face definitions with 3D normal vector & vertex winding order matching UV [top-left, top-right, bottom-right, bottom-left]
     face_defs = {
-        "up":    ([3, 2, 6, 7], 1.0),
-        "down":  ([4, 5, 1, 0], 0.5),
-        "north": ([1, 0, 3, 2], 0.7),
-        "south": ([4, 5, 6, 7], 0.8),
-        "west":  ([0, 4, 7, 3], 0.6),
-        "east":  ([5, 1, 2, 6], 0.75),
+        "up":    ([3, 2, 6, 7], (0.0, 1.0, 0.0), 1.0),
+        "down":  ([4, 5, 1, 0], (0.0, -1.0, 0.0), 0.5),
+        "south": ([7, 6, 5, 4], (0.0, 0.0, 1.0), 0.8),
+        "east":  ([6, 2, 1, 5], (1.0, 0.0, 0.0), 0.75),
+        "north": ([2, 3, 0, 1], (0.0, 0.0, -1.0), 0.7),
+        "west":  ([3, 7, 4, 0], (-1.0, 0.0, 0.0), 0.6),
     }
 
     quads = []
@@ -343,16 +353,13 @@ def render_model_isometric(
         for f_name, f_data in faces.items():
             if f_name not in face_defs or not isinstance(f_data, dict):
                 continue
-            idx_list, shade = face_defs[f_name]
-            pts_proj = [project_point(v[i]) for i in idx_list]
+            idx_list, normal_vec, shade = face_defs[f_name]
 
-            # Shoelace 2D screen-space area for back-face culling (screen Y is inverted: -pts_proj[y])
-            area = 0.0
-            for i in range(4):
-                j = (i + 1) % 4
-                area += (pts_proj[i][0] * (-pts_proj[j][1])) - (pts_proj[j][0] * (-pts_proj[i][1]))
-            if area <= 0.0:
+            # 3D Normal Back-face Culling: only faces pointing toward the camera are visible
+            if rotate_normal(normal_vec) <= 0.05:
                 continue
+
+            pts_proj = [project_point(v[i]) for i in idx_list]
 
             avg_z = sum(p[2] for p in pts_proj) / 4.0
             t_key = str(f_data.get("texture", "")).lstrip("#")

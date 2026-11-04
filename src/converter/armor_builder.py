@@ -19,10 +19,10 @@ ARMOR_SLOT_BY_SUFFIX = {
 }
 
 BEDROCK_ARMOR_GEOMETRY = {
-    "head": "geometry.player.armor.helmet",
-    "chest": "geometry.player.armor.chestplate",
-    "legs": "geometry.player.armor.leggings",
-    "feet": "geometry.player.armor.boots",
+    "head": "geometry.humanoid.armor.helmet",
+    "chest": "geometry.humanoid.armor.chestplate",
+    "legs": "geometry.humanoid.armor.leggings",
+    "feet": "geometry.humanoid.armor.boots",
     "elytra": "geometry.elytra",
 }
 

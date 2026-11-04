@@ -214,7 +214,7 @@ class TestPhase2(unittest.TestCase):
             self.assertTrue(armor_attach_path.is_file())
             armor_attach = json.loads(armor_attach_path.read_text(encoding="utf-8"))
             desc = armor_attach["minecraft:attachable"]["description"]
-            self.assertEqual(desc["geometry"]["default"], "geometry.player.armor.helmet")
+            self.assertEqual(desc["geometry"]["default"], "geometry.humanoid.armor.helmet")
             self.assertEqual(desc["scripts"]["parent_setup"], "v.helmet_layer_visible = 0.0;")
 
             v2_data = json.loads(res.mappings_v2_path.read_text(encoding="utf-8"))

@@ -164,15 +164,15 @@ def build_display_animation(
         h_scale = head_cfg.get("scale", [1.0, 1.0, 1.0])
         head_anim_id = f"animation.j2b.{short_name}.head"
 
-        # Furniture models on ArmorStands have negative translation (e.g. -19, -24) to reach ground.
+        # Furniture models on ArmorStands have negative translation (e.g. -14 to -19) to reach ground.
         # Adding +24.0 keeps furniture flush with ground.
-        # Wearable hats on players have non-negative translation (e.g. 12.75).
-        # Adding +19.25 seats the hat snuggly at top of player's head (y=32.0).
+        # Wearable items (hats, helmets, masks, cigars, glasses) have translation >= -10.0 (e.g. 12.75, 15, -1.25).
+        # Adding +8.0 aligns them accurately to player's head/face height (bone head pivot is y=24, top is y=32).
         y_raw = float(h_trans[1])
-        if y_raw < 0:
+        if y_raw <= -10.0:
             y_pos = round(y_raw + 24.0, 4)
         else:
-            y_pos = round(y_raw + 19.25, 4)
+            y_pos = round(y_raw + 8.0, 4)
 
         animations[head_anim_id] = {
             "loop": True,
