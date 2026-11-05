@@ -87,7 +87,7 @@ def build_bedrock_geometry(
         {
             "name": root_bone_name,
             "pivot": [0.0, 8.0, 0.0],
-            "binding": "q.item_slot_to_bone_name(c.item_slot)",
+            "binding": "(c.item_slot == 'head' || c.item_slot == 'slot.armor.head') ? 'head' : q.item_slot_to_bone_name(c.item_slot)",
             **({"cubes": root_cubes} if root_cubes else {}),
         }
     ]

@@ -156,6 +156,8 @@ def build_display_animation(
         tpl_trans = tp_left.get("translation", [0.0, 0.0, 0.0])
         tpl_scale = tp_left.get("scale", [0.375, 0.375, 0.375] if "head" in display_settings else [0.68, 0.68, 0.68])
         tpl_anim_id = f"animation.j2b.{short_name}.third_person_left"
+        # Handheld items in leftitem bone: leftitem pivot is at hand (y=10).
+        # Adding +11.0 raises offhand shields from dropping below the feet up to the forearm.
         animations[tpl_anim_id] = {
             "loop": True,
             "bones": {
@@ -167,7 +169,7 @@ def build_display_animation(
                     ],
                     "position": [
                         round(-float(tpl_trans[0]), 4),
-                        round(float(tpl_trans[1]), 4),
+                        round(float(tpl_trans[1]) + 11.0, 4),
                         round(float(tpl_trans[2]), 4),
                     ],
                     "scale": [round(float(x), 4) for x in tpl_scale],
@@ -263,13 +265,20 @@ def build_display_animation(
         y_raw = float(h_trans[1])
         z_raw = float(h_trans[2])
         if y_raw <= -10.0:
-            y_pos = 8.0
+            # Furniture / Decorations on ArmorStand head:
+            # Setting y_pos = 16.0 lifts furniture base by 0.5 block (8px) flush onto ground level.
+            y_pos = 16.0
+            # Wall paintings and wall-mounted furniture (e.g. z_raw = -12.0 in furniture_big_painting):
+            # Setting z_pos = 1.5 pushes the painting outward flush against wall surface (fixing 0.3-0.5 block sinking).
             if z_raw <= -6.0:
-                z_pos = round(z_raw + 7.0, 4)
+                z_pos = 1.5
             else:
                 z_pos = round(z_raw, 4)
         else:
-            y_pos = round(y_raw + 16.0, 4)
+            # Wearable items (hats, helmets, masks) on player's head:
+            # Model root_item is now bound to player's 'head' bone (pivot y=24, top y=32).
+            # Adding +3.25 brings santa_hat (12.75 + 3.25 = 16.0) to sit on top of the head (y=32.0).
+            y_pos = round(y_raw + 3.25, 4)
             z_pos = round(z_raw, 4)
 
         animations[head_anim_id] = {
