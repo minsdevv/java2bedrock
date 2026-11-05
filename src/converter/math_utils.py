@@ -102,62 +102,151 @@ def build_display_animation(
     animations: Dict[str, Any] = {}
     anim_map: Dict[str, str] = {}
 
-    # Default third-person right hand
+    # 1. Third-person Right Hand
+    tp_has_right = "thirdperson_righthand" in display_settings
     tp_right = display_settings.get("thirdperson_righthand") or display_settings.get("thirdperson_lefthand") or {}
     tp_rot = tp_right.get("rotation", [0.0, 0.0, 0.0])
     tp_trans = tp_right.get("translation", [0.0, 0.0, 0.0])
     # Fallback scale: blocks in hand default to ~0.375, items to 0.68 instead of oversized 1.0
     tp_scale = tp_right.get("scale", [0.375, 0.375, 0.375] if "head" in display_settings else [0.68, 0.68, 0.68])
 
+    # If the model explicitly defines thirdperson_righthand (like 3D guns, bat, shields),
+    # respect its custom Euler angles without arbitrarily adding 90 deg tilt to X.
+    # Vanilla fallback tools (where no thirdperson display exists) still need the +90 deg X tilt.
+    if tp_has_right:
+        bedrock_tp_rot = [
+            round(-float(tp_rot[0]), 4),
+            round(-float(tp_rot[1]), 4),
+            round(float(tp_rot[2]), 4),
+        ]
+        bedrock_tp_trans = [
+            round(-float(tp_trans[0]), 4),
+            round(float(tp_trans[1]), 4),
+            round(float(tp_trans[2]), 4),
+        ]
+    else:
+        bedrock_tp_rot = [
+            round(90.0 - float(tp_rot[0]), 4),
+            round(-float(tp_rot[1]), 4),
+            round(-float(tp_rot[2]), 4),
+        ]
+        bedrock_tp_trans = [
+            round(-float(tp_trans[0]), 4),
+            round(float(tp_trans[1]) + 6.0, 4),
+            round(float(tp_trans[2]) + 1.0, 4),
+        ]
+
     tp_anim_id = f"animation.j2b.{short_name}.third_person"
     animations[tp_anim_id] = {
         "loop": True,
         "bones": {
             root_bone: {
-                "rotation": [
-                    round(90.0 - float(tp_rot[0]), 4),
-                    round(-float(tp_rot[1]), 4),
-                    round(-float(tp_rot[2]), 4),
-                ],
-                "position": [
-                    round(-float(tp_trans[0]), 4),
-                    round(float(tp_trans[1]) + 6.0, 4),
-                    round(float(tp_trans[2]) + 1.0, 4),
-                ],
+                "rotation": bedrock_tp_rot,
+                "position": bedrock_tp_trans,
                 "scale": [round(float(x), 4) for x in tp_scale],
             }
         },
     }
     anim_map["third_person"] = tp_anim_id
 
-    # Default first-person right hand
+    # 2. Third-person Left Hand (offhand / shields / dual wield)
+    if "thirdperson_lefthand" in display_settings:
+        tp_left = display_settings["thirdperson_lefthand"]
+        tpl_rot = tp_left.get("rotation", [0.0, 0.0, 0.0])
+        tpl_trans = tp_left.get("translation", [0.0, 0.0, 0.0])
+        tpl_scale = tp_left.get("scale", [0.375, 0.375, 0.375] if "head" in display_settings else [0.68, 0.68, 0.68])
+        tpl_anim_id = f"animation.j2b.{short_name}.third_person_left"
+        animations[tpl_anim_id] = {
+            "loop": True,
+            "bones": {
+                root_bone: {
+                    "rotation": [
+                        round(-float(tpl_rot[0]), 4),
+                        round(-float(tpl_rot[1]), 4),
+                        round(float(tpl_rot[2]), 4),
+                    ],
+                    "position": [
+                        round(-float(tpl_trans[0]), 4),
+                        round(float(tpl_trans[1]), 4),
+                        round(float(tpl_trans[2]), 4),
+                    ],
+                    "scale": [round(float(x), 4) for x in tpl_scale],
+                }
+            },
+        }
+        anim_map["third_person_left"] = tpl_anim_id
+
+    # 3. Default First-person Right Hand
+    fp_has_right = "firstperson_righthand" in display_settings
     fp_right = display_settings.get("firstperson_righthand") or display_settings.get("firstperson_lefthand") or {}
     fp_rot = fp_right.get("rotation", [0.0, 0.0, 0.0])
     fp_trans = fp_right.get("translation", [0.0, 0.0, 0.0])
     fp_scale = fp_right.get("scale", [0.4, 0.4, 0.4] if "head" in display_settings else [0.68, 0.68, 0.68])
+
+    if fp_has_right:
+        bedrock_fp_rot = [
+            round(-float(fp_rot[0]), 4),
+            round(-float(fp_rot[1]), 4),
+            round(float(fp_rot[2]), 4),
+        ]
+        bedrock_fp_trans = [
+            round(-float(fp_trans[0]), 4),
+            round(float(fp_trans[1]), 4),
+            round(float(fp_trans[2]), 4),
+        ]
+    else:
+        bedrock_fp_rot = [
+            round(-float(fp_rot[0]), 4),
+            round(-float(fp_rot[1]), 4),
+            round(float(fp_rot[2]), 4),
+        ]
+        bedrock_fp_trans = [
+            round(-float(fp_trans[0]) + 3.0, 4),
+            round(float(fp_trans[1]) + 12.0, 4),
+            round(float(fp_trans[2]) - 3.0, 4),
+        ]
 
     fp_anim_id = f"animation.j2b.{short_name}.first_person"
     animations[fp_anim_id] = {
         "loop": True,
         "bones": {
             root_bone: {
-                "rotation": [
-                    round(-float(fp_rot[0]), 4),
-                    round(-float(fp_rot[1]), 4),
-                    round(float(fp_rot[2]), 4),
-                ],
-                "position": [
-                    round(-float(fp_trans[0]) + 3.0, 4),
-                    round(float(fp_trans[1]) + 12.0, 4),
-                    round(float(fp_trans[2]) - 3.0, 4),
-                ],
+                "rotation": bedrock_fp_rot,
+                "position": bedrock_fp_trans,
                 "scale": [round(float(x), 4) for x in fp_scale],
             }
         },
     }
     anim_map["first_person"] = fp_anim_id
 
-    # Head slot (hats / helmets worn via head slot, or furniture placed on ArmorStand head)
+    # 4. First-person Left Hand
+    if "firstperson_lefthand" in display_settings:
+        fp_left = display_settings["firstperson_lefthand"]
+        fpl_rot = fp_left.get("rotation", [0.0, 0.0, 0.0])
+        fpl_trans = fp_left.get("translation", [0.0, 0.0, 0.0])
+        fpl_scale = fp_left.get("scale", [0.4, 0.4, 0.4] if "head" in display_settings else [0.68, 0.68, 0.68])
+        fpl_anim_id = f"animation.j2b.{short_name}.first_person_left"
+        animations[fpl_anim_id] = {
+            "loop": True,
+            "bones": {
+                root_bone: {
+                    "rotation": [
+                        round(-float(fpl_rot[0]), 4),
+                        round(-float(fpl_rot[1]), 4),
+                        round(float(fpl_rot[2]), 4),
+                    ],
+                    "position": [
+                        round(-float(fpl_trans[0]), 4),
+                        round(float(fpl_trans[1]), 4),
+                        round(float(fpl_trans[2]), 4),
+                    ],
+                    "scale": [round(float(x), 4) for x in fpl_scale],
+                }
+            },
+        }
+        anim_map["first_person_left"] = fpl_anim_id
+
+    # 5. Head slot (hats / helmets worn via head slot, or furniture placed on ArmorStand head)
     if "head" in display_settings:
         head_cfg = display_settings["head"]
         h_rot = head_cfg.get("rotation", [0.0, 0.0, 0.0])
@@ -166,15 +255,22 @@ def build_display_animation(
         head_anim_id = f"animation.j2b.{short_name}.head"
 
         # Furniture models on Small ArmorStands have negative translation (e.g. -14 to -19).
-        # In Bedrock, the scale (2.0-2.5x) around pivot [0, 8, 0] already stretches the base
-        # down to ground level (matching Small Armor Stand height ~11px).
-        # Keeping y_pos at 0 prevents the furniture from sinking into the ground.
-        # Wearable items (hats, helmets, masks) use Java's translation directly.
+        # In Bedrock, the scale (2.0-2.5x) around pivot [0, 8, 0] stretches the base.
+        # Adding +8.0 keeps furniture flush with ground (fixing 0.5 block sinking).
+        # For wall paintings or furniture with negative z_raw (<= -6.0), add +7.0 to prevent
+        # sinking into wall (0.3-0.5 block).
+        # Wearable items (hats, helmets, masks) use +16.0 offset to seat snuggly on top of player's head (y=32.0).
         y_raw = float(h_trans[1])
+        z_raw = float(h_trans[2])
         if y_raw <= -10.0:
-            y_pos = 0.0
+            y_pos = 8.0
+            if z_raw <= -6.0:
+                z_pos = round(z_raw + 7.0, 4)
+            else:
+                z_pos = round(z_raw, 4)
         else:
-            y_pos = round(y_raw, 4)
+            y_pos = round(y_raw + 16.0, 4)
+            z_pos = round(z_raw, 4)
 
         animations[head_anim_id] = {
             "loop": True,
@@ -184,7 +280,7 @@ def build_display_animation(
                     "position": [
                         round(-float(h_trans[0]), 4),
                         y_pos,
-                        round(float(h_trans[2]), 4),
+                        z_pos,
                     ],
                     "scale": [round(float(x), 4) for x in h_scale],
                 }

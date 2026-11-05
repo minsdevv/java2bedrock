@@ -16,20 +16,38 @@ def build_bedrock_attachable(
     is_head_molang = (
         "(c.item_slot == 'head' || c.item_slot == 'slot.armor.head' || q.item_slot_to_bone_name(c.item_slot) == 'head')"
     )
+    is_offhand_molang = (
+        "(c.item_slot == 'off_hand' || c.item_slot == 'slot.weapon.offhand' || q.item_slot_to_bone_name(c.item_slot) == 'leftitem')"
+    )
+
     animate_list = []
-    if "first_person" in animation_map:
+    # 1. First-person view
+    if "first_person_left" in animation_map:
+        animate_list.append({"first_person_left": f"c.is_first_person && {is_offhand_molang}"})
+        if "first_person" in animation_map:
+            animate_list.append({"first_person": f"c.is_first_person && !{is_offhand_molang}"})
+    elif "first_person" in animation_map:
         animate_list.append({"first_person": "c.is_first_person"})
-    if "third_person" in animation_map:
+
+    # 2. Third-person view
+    has_head = "head" in animation_map
+    not_head_expr = f" && !{is_head_molang}" if has_head else ""
+
+    if "third_person_left" in animation_map:
         animate_list.append(
-            {
-                "third_person": (
-                    f"!c.is_first_person && !{is_head_molang}"
-                    if "head" in animation_map
-                    else "!c.is_first_person"
-                )
-            }
+            {"third_person_left": f"!c.is_first_person{not_head_expr} && {is_offhand_molang}"}
         )
-    if "head" in animation_map:
+        if "third_person" in animation_map:
+            animate_list.append(
+                {"third_person": f"!c.is_first_person{not_head_expr} && !{is_offhand_molang}"}
+            )
+    elif "third_person" in animation_map:
+        animate_list.append(
+            {"third_person": f"!c.is_first_person{not_head_expr}"}
+        )
+
+    # 3. Head slot (hats / helmets / furniture)
+    if has_head:
         animate_list.append({"head": f"!c.is_first_person && {is_head_molang}"})
 
     return {
