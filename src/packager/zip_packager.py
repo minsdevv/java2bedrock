@@ -268,6 +268,11 @@ def convert_java_pack(
         count_3d = 0
         count_2d = 0
 
+        # --- Pre-parse Custom Blocks so Phase 2 items can link block_placer ---
+        custom_blocks = parse_java_pack_blocks(pack_root, bedrock_ns=bedrock_ns)
+        block_lookup = {blk.short_name: blk for blk in custom_blocks}
+        block_by_model = {blk.model_id.lstrip('_'): blk for blk in custom_blocks}
+
         for model in models:
             tex_rel_no_ext = f"textures/items/{bedrock_ns}/{model.short_name}"
             tex_dest = bedrock_dir / f"{tex_rel_no_ext}.png"
@@ -367,12 +372,18 @@ def convert_java_pack(
                     },
                 },
             }
+            # Link block_placer component if item represents a custom block (enables 3D dropped model)
+            matching_blk = block_lookup.get(model.short_name) or block_by_model.get(model.model_id.lstrip('_'))
+            if matching_blk:
+                item_def["minecraft:item"]["components"]["minecraft:block_placer"] = {
+                    "block": matching_blk.bedrock_identifier,
+                }
+
             items_path = bedrock_dir / "items" / bedrock_ns / f"{model.short_name}.json"
             items_path.parent.mkdir(parents=True, exist_ok=True)
             items_path.write_text(json.dumps(item_def, indent=2), encoding="utf-8")
 
         # --- Phase 3A: Custom Blocks ---
-        custom_blocks = parse_java_pack_blocks(pack_root, bedrock_ns=bedrock_ns)
         terrain_texture_atlas: Dict[str, Any] = {}
         for blk in custom_blocks:
             blk_tex_rel = f"textures/blocks/{bedrock_ns}/{blk.short_name}"

@@ -13,6 +13,9 @@ def build_bedrock_attachable(
     """Build a Bedrock 1.10.0 minecraft:attachable JSON dictionary for a 3D item."""
     geometry_id = f"geometry.j2b.{model.short_name}"
 
+    is_head_molang = (
+        "(c.item_slot == 'head' || c.item_slot == 'slot.armor.head' || q.item_slot_to_bone_name(c.item_slot) == 'head')"
+    )
     animate_list = []
     if "first_person" in animation_map:
         animate_list.append({"first_person": "c.is_first_person"})
@@ -20,14 +23,14 @@ def build_bedrock_attachable(
         animate_list.append(
             {
                 "third_person": (
-                    "!c.is_first_person && c.item_slot != 'head'"
+                    f"!c.is_first_person && !{is_head_molang}"
                     if "head" in animation_map
                     else "!c.is_first_person"
                 )
             }
         )
     if "head" in animation_map:
-        animate_list.append({"head": "!c.is_first_person && c.item_slot == 'head'"})
+        animate_list.append({"head": f"!c.is_first_person && {is_head_molang}"})
 
     return {
         "format_version": "1.10.0",

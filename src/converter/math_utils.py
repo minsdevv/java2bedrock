@@ -106,7 +106,8 @@ def build_display_animation(
     tp_right = display_settings.get("thirdperson_righthand") or display_settings.get("thirdperson_lefthand") or {}
     tp_rot = tp_right.get("rotation", [0.0, 0.0, 0.0])
     tp_trans = tp_right.get("translation", [0.0, 0.0, 0.0])
-    tp_scale = tp_right.get("scale", [1.0, 1.0, 1.0])
+    # Fallback scale: blocks in hand default to ~0.375, items to 0.68 instead of oversized 1.0
+    tp_scale = tp_right.get("scale", [0.375, 0.375, 0.375] if "head" in display_settings else [0.68, 0.68, 0.68])
 
     tp_anim_id = f"animation.j2b.{short_name}.third_person"
     animations[tp_anim_id] = {
@@ -133,7 +134,7 @@ def build_display_animation(
     fp_right = display_settings.get("firstperson_righthand") or display_settings.get("firstperson_lefthand") or {}
     fp_rot = fp_right.get("rotation", [0.0, 0.0, 0.0])
     fp_trans = fp_right.get("translation", [0.0, 0.0, 0.0])
-    fp_scale = fp_right.get("scale", [1.0, 1.0, 1.0])
+    fp_scale = fp_right.get("scale", [0.4, 0.4, 0.4] if "head" in display_settings else [0.68, 0.68, 0.68])
 
     fp_anim_id = f"animation.j2b.{short_name}.first_person"
     animations[fp_anim_id] = {
@@ -164,15 +165,16 @@ def build_display_animation(
         h_scale = head_cfg.get("scale", [1.0, 1.0, 1.0])
         head_anim_id = f"animation.j2b.{short_name}.head"
 
-        # Furniture models on ArmorStands have negative translation (e.g. -14 to -19) to reach ground.
-        # Adding +24.0 keeps furniture flush with ground.
-        # Wearable items (hats, helmets, masks, cigars, glasses) have translation >= -10.0 (e.g. 12.75, 15, -1.25).
-        # Adding +8.0 aligns them accurately to player's head/face height (bone head pivot is y=24, top is y=32).
+        # Furniture models on Small ArmorStands have negative translation (e.g. -14 to -19).
+        # In Bedrock, the scale (2.0-2.5x) around pivot [0, 8, 0] already stretches the base
+        # down to ground level (matching Small Armor Stand height ~11px).
+        # Keeping y_pos at 0 prevents the furniture from sinking into the ground.
+        # Wearable items (hats, helmets, masks) use Java's translation directly.
         y_raw = float(h_trans[1])
         if y_raw <= -10.0:
-            y_pos = round(y_raw + 24.0, 4)
+            y_pos = 0.0
         else:
-            y_pos = round(y_raw + 8.0, 4)
+            y_pos = round(y_raw, 4)
 
         animations[head_anim_id] = {
             "loop": True,

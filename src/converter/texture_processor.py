@@ -299,37 +299,71 @@ def render_model_isometric(
     cy = (min_y + max_y) / 2.0
     cz = (min_z + max_z) / 2.0
 
-    # Minecraft Isometric GUI projection: Pitch 30 deg, Yaw -45 deg
-    yaw = math.radians(-45)
-    pitch = math.radians(30)
-    cos_y, sin_y = math.cos(yaw), math.sin(yaw)
-    cos_p, sin_p = math.cos(pitch), math.sin(pitch)
+    # Extract display.gui rotation if available, otherwise default to standard Minecraft GUI Isometric
+    gui_disp = model.display.get("gui", {}) if hasattr(model, "display") and model.display else {}
+    gui_rot = gui_disp.get("rotation") if gui_disp else None
+
+    # [30, 225, 0] in Minecraft coordinates is isometric (Pitch 30 deg, Yaw -45 deg)
+    if not gui_rot or gui_rot == [30, 225, 0] or gui_rot == [30, -45, 0]:
+        rx_deg, ry_deg, rz_deg = 30.0, -45.0, 0.0
+        is_standard_iso = True
+    else:
+        rx_deg = float(gui_rot[0])
+        ry_deg = float(gui_rot[1])
+        rz_deg = float(gui_rot[2])
+        is_standard_iso = False
+
+    rad_x = math.radians(rx_deg)
+    rad_y = math.radians(ry_deg)
+    rad_z = math.radians(rz_deg)
 
     def project_point(pt: Tuple[float, float, float]) -> Tuple[float, float, float]:
         rx = pt[0] - cx
         ry = pt[1] - cy
         rz = pt[2] - cz
-        # Yaw
-        x1 = rx * cos_y + rz * sin_y
-        y1 = ry
-        z1 = -rx * sin_y + rz * cos_y
-        # Pitch
-        x2 = x1
-        y2 = y1 * cos_p - z1 * sin_p
-        z2 = y1 * sin_p + z1 * cos_p
-        return x2, y2, z2
+        # X rotation (Pitch)
+        x1 = rx
+        y1 = ry * math.cos(rad_x) - rz * math.sin(rad_x)
+        z1 = ry * math.sin(rad_x) + rz * math.cos(rad_x)
+        # Y rotation (Yaw)
+        x2 = x1 * math.cos(rad_y) + z1 * math.sin(rad_y)
+        y2 = y1
+        z2 = -x1 * math.sin(rad_y) + z1 * math.cos(rad_y)
+        # Z rotation (Roll)
+        x3 = x2 * math.cos(rad_z) - y2 * math.sin(rad_z)
+        y3 = x2 * math.sin(rad_z) + y2 * math.cos(rad_z)
+        z3 = z2
+        return x3, y3, z3
 
     def rotate_normal(norm: Tuple[float, float, float]) -> float:
         nx, ny, nz = norm
-        x1 = nx * cos_y + nz * sin_y
-        y1 = ny
-        z1 = -nx * sin_y + nz * cos_y
-        z2 = y1 * sin_p + z1 * cos_p
-        return z2
+        x1 = nx
+        y1 = ny * math.cos(rad_x) - nz * math.sin(rad_x)
+        z1 = ny * math.sin(rad_x) + nz * math.cos(rad_x)
+        x2 = x1 * math.cos(rad_y) + z1 * math.sin(rad_y)
+        y2 = y1
+        z2 = -x1 * math.sin(rad_y) + z1 * math.cos(rad_y)
+        x3 = x2 * math.cos(rad_z) - y2 * math.sin(rad_z)
+        y3 = x2 * math.sin(rad_z) + y2 * math.cos(rad_z)
+        z3 = z2
+        return z3
 
-    # Scale: cube projected height is ~1.57 * max_dim
-    max_dim = max(max_x - min_x, max_y - min_y, max_z - min_z, 1.0)
-    scale = (size * 0.88) / (max_dim * 1.57)
+    # Dynamic scaling: compute projected bounding box to fit slot perfectly
+    if is_standard_iso:
+        max_dim = max(max_x - min_x, max_y - min_y, max_z - min_z, 1.0)
+        scale = (size * 0.88) / (max_dim * 1.57)
+    else:
+        bbox_corners = [
+            (min_x, min_y, min_z), (max_x, min_y, min_z),
+            (min_x, max_y, min_z), (max_x, max_y, min_z),
+            (min_x, min_y, max_z), (max_x, min_y, max_z),
+            (min_x, max_y, max_z), (max_x, max_y, max_z),
+        ]
+        proj_corners = [project_point(c) for c in bbox_corners]
+        span_x = max(p[0] for p in proj_corners) - min(p[0] for p in proj_corners)
+        span_y = max(p[1] for p in proj_corners) - min(p[1] for p in proj_corners)
+        span_max = max(span_x, span_y, 1.0)
+        scale = (size * 0.90) / span_max
 
     # Face definitions with 3D normal vector & vertex winding order matching UV [top-left, top-right, bottom-right, bottom-left]
     face_defs = {
