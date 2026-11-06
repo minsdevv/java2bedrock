@@ -76,20 +76,29 @@ def build_bedrock_geometry(
         child_bones.append(
             {
                 "name": f"bone_rot_{idx}",
-                "parent": root_bone_name,
+                "parent": f"{root_bone_name}_z",
                 "pivot": [px, py, pz],
                 "rotation": [rx, ry, rz],
                 "cubes": cubes,
             }
         )
 
+    # Bone hierarchy mirrors Java's display transform order: root (slot base pose, bound to the
+    # player bone) -> x -> y -> z (one bone per Euler axis, so rotations compose like Java).
     bones: List[Dict[str, Any]] = [
         {
             "name": root_bone_name,
+            "binding": "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)",
             "pivot": [0.0, 8.0, 0.0],
-            "binding": "(c.item_slot == 'head' || c.item_slot == 'slot.armor.head') ? 'head' : q.item_slot_to_bone_name(c.item_slot)",
+        },
+        {"name": f"{root_bone_name}_x", "parent": root_bone_name, "pivot": [0.0, 8.0, 0.0]},
+        {"name": f"{root_bone_name}_y", "parent": f"{root_bone_name}_x", "pivot": [0.0, 8.0, 0.0]},
+        {
+            "name": f"{root_bone_name}_z",
+            "parent": f"{root_bone_name}_y",
+            "pivot": [0.0, 8.0, 0.0],
             **({"cubes": root_cubes} if root_cubes else {}),
-        }
+        },
     ]
     bones.extend(child_bones)
 

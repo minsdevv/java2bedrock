@@ -185,10 +185,10 @@ class TestPhase2(unittest.TestCase):
             with Image.open(hammer_model_tex) as im:
                 self.assertEqual(im.size, (32, 16))
 
-            # Verify isometric GUI icon was generated at 32x32
+            # Verify isometric GUI icon was generated at default 128x128
             hammer_gui_icon = res.bedrock_pack_dir / "textures" / "items" / "j2b" / "nexo_war_hammer_10.png"
             with Image.open(hammer_gui_icon) as im:
-                self.assertEqual(im.size, (32, 32))
+                self.assertEqual(im.size, (128, 128))
 
             hammer_geo = json.loads(
                 (res.bedrock_pack_dir / "models" / "entity" / "j2b" / "nexo_war_hammer_10.geo.json").read_text(
@@ -199,7 +199,7 @@ class TestPhase2(unittest.TestCase):
             self.assertEqual(geo_desc["texture_width"], 32)
             self.assertEqual(geo_desc["texture_height"], 16)
             bones = hammer_geo["minecraft:geometry"][0]["bones"]
-            handle_cube = bones[0]["cubes"][1]
+            handle_cube = next(b for b in bones if b["name"] == "root_item_z")["cubes"][1]
             north_uv = handle_cube["uv"]["north"]["uv"]
             self.assertEqual(north_uv[0], 16.0)
 

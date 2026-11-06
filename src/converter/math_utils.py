@@ -93,212 +93,100 @@ def java_face_uv_to_bedrock(
     return result
 
 
+def _axis_bones(
+    root_bone: str,
+    cfg: Optional[Dict[str, List[float]]],
+    *,
+    pos_sign: Tuple[float, float, float],
+    pos_scale: float = 1.0,
+    default_scale: Optional[float] = None,
+    default_rot: Optional[List[float]] = None,
+) -> Dict[str, Any]:
+    """Split a Java display transform (translation/rotation/scale) over the x/y/z bones.
+
+    Java applies translation, then rotation about the model centre, then scale. Bedrock
+    bone rotation is split per axis (x outermost) with the Java Y/X signs flipped for the
+    handedness change, mirroring the proven Geyser/Java2Bedrock layout.
+    """
+    bones: Dict[str, Any] = {}
+    x_bone: Dict[str, Any] = {}
+    if cfg:
+        rot = cfg.get("rotation")
+        trans = cfg.get("translation")
+        scale = cfg.get("scale")
+        if rot:
+            x_bone["rotation"] = [round(-float(rot[0]), 4), 0, 0]
+            bones[f"{root_bone}_y"] = {"rotation": [0, round(-float(rot[1]), 4), 0]}
+            bones[f"{root_bone}_z"] = {"rotation": [0, 0, round(float(rot[2]), 4)]}
+        elif default_rot is not None:
+            x_bone["rotation"] = default_rot
+        if trans:
+            x_bone["position"] = [
+                round(pos_sign[0] * float(trans[0]) * pos_scale, 4),
+                round(pos_sign[1] * float(trans[1]) * pos_scale, 4),
+                round(pos_sign[2] * float(trans[2]) * pos_scale, 4),
+            ]
+        if scale:
+            x_bone["scale"] = [round(float(v) * (pos_scale if pos_scale != 1.0 else 1.0), 4) for v in scale]
+    elif default_rot is not None:
+        x_bone["rotation"] = default_rot
+    if "scale" not in x_bone and default_scale is not None:
+        x_bone["scale"] = default_scale
+    if x_bone:
+        bones[f"{root_bone}_x"] = x_bone
+    return bones
+
+
 def build_display_animation(
     short_name: str,
     display_settings: Dict[str, Dict[str, List[float]]],
     root_bone: str = "root_item",
 ) -> Tuple[Dict[str, Any], Dict[str, str]]:
-    """Build Bedrock attachable animations for thirdperson, firstperson, and head displays."""
+    """Build Bedrock attachable animations (3rd/1st person main+off hand, head, disable).
+
+    The root bone carries the fixed per-slot base pose of Bedrock's hand bones (the item
+    geometry is bound to rightitem/leftitem whose axes differ from Java's), while the
+    x/y/z child bones carry the model's own Java display transform.
+    """
+    pre = f"animation.j2b.{short_name}"
     animations: Dict[str, Any] = {}
     anim_map: Dict[str, str] = {}
 
-    # 1. Third-person Right Hand
-    tp_has_right = "thirdperson_righthand" in display_settings
-    tp_right = display_settings.get("thirdperson_righthand") or display_settings.get("thirdperson_lefthand") or {}
-    tp_rot = tp_right.get("rotation", [0.0, 0.0, 0.0])
-    tp_trans = tp_right.get("translation", [0.0, 0.0, 0.0])
-    # Fallback scale: blocks in hand default to ~0.375, items to 0.68 instead of oversized 1.0
-    tp_scale = tp_right.get("scale", [0.375, 0.375, 0.375] if "head" in display_settings else [0.68, 0.68, 0.68])
+    def add(key: str, root_pose: Dict[str, Any], axis: Dict[str, Any]) -> None:
+        bones: Dict[str, Any] = {root_bone: root_pose}
+        bones.update(axis)
+        animations[f"{pre}.{key}"] = {"loop": True, "bones": bones}
+        anim_map[key] = f"{pre}.{key}"
 
-    # If the model explicitly defines thirdperson_righthand (like 3D guns, bat, shields),
-    # respect its custom Euler angles without arbitrarily adding 90 deg tilt to X.
-    # Vanilla fallback tools (where no thirdperson display exists) still need the +90 deg X tilt.
-    if tp_has_right:
-        bedrock_tp_rot = [
-            round(-float(tp_rot[0]), 4),
-            round(-float(tp_rot[1]), 4),
-            round(float(tp_rot[2]), 4),
-        ]
-        bedrock_tp_trans = [
-            round(-float(tp_trans[0]), 4),
-            round(float(tp_trans[1]), 4),
-            round(float(tp_trans[2]), 4),
-        ]
-    else:
-        bedrock_tp_rot = [
-            round(90.0 - float(tp_rot[0]), 4),
-            round(-float(tp_rot[1]), 4),
-            round(-float(tp_rot[2]), 4),
-        ]
-        bedrock_tp_trans = [
-            round(-float(tp_trans[0]), 4),
-            round(float(tp_trans[1]) + 6.0, 4),
-            round(float(tp_trans[2]) + 1.0, 4),
-        ]
+    hand3 = {"rotation": [90, 0, 0], "position": [0, 13, -3]}
+    hand1 = {"rotation": [90, 60, -40], "position": [4, 10, 4], "scale": 1.5}
 
-    tp_anim_id = f"animation.j2b.{short_name}.third_person"
-    animations[tp_anim_id] = {
+    add("third_person", dict(hand3),
+        _axis_bones(root_bone, display_settings.get("thirdperson_righthand"), pos_sign=(-1, 1, 1)))
+    add("third_person_left", dict(hand3),
+        _axis_bones(root_bone, display_settings.get("thirdperson_lefthand"), pos_sign=(1, 1, 1)))
+    add("first_person", dict(hand1),
+        _axis_bones(root_bone, display_settings.get("firstperson_righthand"),
+                    pos_sign=(-1, 1, -1), default_rot=[0.1, 0.1, 0.1]))
+    add("first_person_left", dict(hand1),
+        _axis_bones(root_bone, display_settings.get("firstperson_lefthand"),
+                    pos_sign=(1, 1, -1), default_rot=[0.1, 0.1, 0.1]))
+
+    # Head slot: Java renders head items at 0.625 of model size before the display transform.
+    head_axis = _axis_bones(
+        root_bone, display_settings.get("head"), pos_sign=(-1, 1, 1),
+        pos_scale=0.625, default_scale=0.625,
+    )
+    if f"{root_bone}_x" not in head_axis:
+        head_axis[f"{root_bone}_x"] = {"scale": 0.625}
+    add("head", {"position": [0, 19.9, 0]}, head_axis)
+
+    animations["animation.j2b.disable"] = {
         "loop": True,
-        "bones": {
-            root_bone: {
-                "rotation": bedrock_tp_rot,
-                "position": bedrock_tp_trans,
-                "scale": [round(float(x), 4) for x in tp_scale],
-            }
-        },
+        "override_previous_animation": True,
+        "bones": {root_bone: {"scale": 0}},
     }
-    anim_map["third_person"] = tp_anim_id
+    anim_map["disable"] = "animation.j2b.disable"
 
-    # 2. Third-person Left Hand (offhand / shields / dual wield)
-    if "thirdperson_lefthand" in display_settings:
-        tp_left = display_settings["thirdperson_lefthand"]
-        tpl_rot = tp_left.get("rotation", [0.0, 0.0, 0.0])
-        tpl_trans = tp_left.get("translation", [0.0, 0.0, 0.0])
-        tpl_scale = tp_left.get("scale", [0.375, 0.375, 0.375] if "head" in display_settings else [0.68, 0.68, 0.68])
-        tpl_anim_id = f"animation.j2b.{short_name}.third_person_left"
-        # Handheld items in leftitem bone: leftitem pivot is at hand (y=10).
-        # Adding +11.0 raises offhand shields from dropping below the feet up to the forearm.
-        animations[tpl_anim_id] = {
-            "loop": True,
-            "bones": {
-                root_bone: {
-                    "rotation": [
-                        round(-float(tpl_rot[0]), 4),
-                        round(-float(tpl_rot[1]), 4),
-                        round(float(tpl_rot[2]), 4),
-                    ],
-                    "position": [
-                        round(-float(tpl_trans[0]), 4),
-                        round(float(tpl_trans[1]) + 11.0, 4),
-                        round(float(tpl_trans[2]), 4),
-                    ],
-                    "scale": [round(float(x), 4) for x in tpl_scale],
-                }
-            },
-        }
-        anim_map["third_person_left"] = tpl_anim_id
-
-    # 3. Default First-person Right Hand
-    fp_has_right = "firstperson_righthand" in display_settings
-    fp_right = display_settings.get("firstperson_righthand") or display_settings.get("firstperson_lefthand") or {}
-    fp_rot = fp_right.get("rotation", [0.0, 0.0, 0.0])
-    fp_trans = fp_right.get("translation", [0.0, 0.0, 0.0])
-    fp_scale = fp_right.get("scale", [0.4, 0.4, 0.4] if "head" in display_settings else [0.68, 0.68, 0.68])
-
-    if fp_has_right:
-        bedrock_fp_rot = [
-            round(-float(fp_rot[0]), 4),
-            round(-float(fp_rot[1]), 4),
-            round(float(fp_rot[2]), 4),
-        ]
-        bedrock_fp_trans = [
-            round(-float(fp_trans[0]), 4),
-            round(float(fp_trans[1]), 4),
-            round(float(fp_trans[2]), 4),
-        ]
-    else:
-        bedrock_fp_rot = [
-            round(-float(fp_rot[0]), 4),
-            round(-float(fp_rot[1]), 4),
-            round(float(fp_rot[2]), 4),
-        ]
-        bedrock_fp_trans = [
-            round(-float(fp_trans[0]) + 3.0, 4),
-            round(float(fp_trans[1]) + 12.0, 4),
-            round(float(fp_trans[2]) - 3.0, 4),
-        ]
-
-    fp_anim_id = f"animation.j2b.{short_name}.first_person"
-    animations[fp_anim_id] = {
-        "loop": True,
-        "bones": {
-            root_bone: {
-                "rotation": bedrock_fp_rot,
-                "position": bedrock_fp_trans,
-                "scale": [round(float(x), 4) for x in fp_scale],
-            }
-        },
-    }
-    anim_map["first_person"] = fp_anim_id
-
-    # 4. First-person Left Hand
-    if "firstperson_lefthand" in display_settings:
-        fp_left = display_settings["firstperson_lefthand"]
-        fpl_rot = fp_left.get("rotation", [0.0, 0.0, 0.0])
-        fpl_trans = fp_left.get("translation", [0.0, 0.0, 0.0])
-        fpl_scale = fp_left.get("scale", [0.4, 0.4, 0.4] if "head" in display_settings else [0.68, 0.68, 0.68])
-        fpl_anim_id = f"animation.j2b.{short_name}.first_person_left"
-        animations[fpl_anim_id] = {
-            "loop": True,
-            "bones": {
-                root_bone: {
-                    "rotation": [
-                        round(-float(fpl_rot[0]), 4),
-                        round(-float(fpl_rot[1]), 4),
-                        round(float(fpl_rot[2]), 4),
-                    ],
-                    "position": [
-                        round(-float(fpl_trans[0]), 4),
-                        round(float(fpl_trans[1]), 4),
-                        round(float(fpl_trans[2]), 4),
-                    ],
-                    "scale": [round(float(x), 4) for x in fpl_scale],
-                }
-            },
-        }
-        anim_map["first_person_left"] = fpl_anim_id
-
-    # 5. Head slot (hats / helmets worn via head slot, or furniture placed on ArmorStand head)
-    if "head" in display_settings:
-        head_cfg = display_settings["head"]
-        h_rot = head_cfg.get("rotation", [0.0, 0.0, 0.0])
-        h_trans = head_cfg.get("translation", [0.0, 0.0, 0.0])
-        h_scale = head_cfg.get("scale", [1.0, 1.0, 1.0])
-        head_anim_id = f"animation.j2b.{short_name}.head"
-
-        # Furniture models on Small ArmorStands have negative translation (e.g. -14 to -19).
-        # In Bedrock, the scale (2.0-2.5x) around pivot [0, 8, 0] stretches the base.
-        # Adding +8.0 keeps furniture flush with ground (fixing 0.5 block sinking).
-        # For wall paintings or furniture with negative z_raw (<= -6.0), add +7.0 to prevent
-        # sinking into wall (0.3-0.5 block).
-        # Wearable items (hats, helmets, masks) use +16.0 offset to seat snuggly on top of player's head (y=32.0).
-        y_raw = float(h_trans[1])
-        z_raw = float(h_trans[2])
-        if y_raw <= -10.0:
-            # Furniture / Decorations on ArmorStand head:
-            # Setting y_pos = 16.0 lifts furniture base by 0.5 block (8px) flush onto ground level.
-            y_pos = 16.0
-            # Wall paintings and wall-mounted furniture (e.g. z_raw = -12.0 in furniture_big_painting):
-            # Setting z_pos = 1.5 pushes the painting outward flush against wall surface (fixing 0.3-0.5 block sinking).
-            if z_raw <= -6.0:
-                z_pos = 1.5
-            else:
-                z_pos = round(z_raw, 4)
-        else:
-            # Wearable items (hats, helmets, masks) on player's head:
-            # Model root_item is now bound to player's 'head' bone (pivot y=24, top y=32).
-            # Adding +3.25 brings santa_hat (12.75 + 3.25 = 16.0) to sit on top of the head (y=32.0).
-            y_pos = round(y_raw + 3.25, 4)
-            z_pos = round(z_raw, 4)
-
-        animations[head_anim_id] = {
-            "loop": True,
-            "bones": {
-                root_bone: {
-                    "rotation": [round(-float(h_rot[0]), 4), round(-float(h_rot[1]), 4), round(float(h_rot[2]), 4)],
-                    "position": [
-                        round(-float(h_trans[0]), 4),
-                        y_pos,
-                        z_pos,
-                    ],
-                    "scale": [round(float(x), 4) for x in h_scale],
-                }
-            },
-        }
-        anim_map["head"] = head_anim_id
-
-    doc = {
-        "format_version": "1.8.0",
-        "animations": animations,
-    }
+    doc = {"format_version": "1.8.0", "animations": animations}
     return doc, anim_map

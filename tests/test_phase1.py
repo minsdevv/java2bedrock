@@ -193,11 +193,12 @@ def test_phase1_full_conversion(tmp_path: Path) -> None:
         geo_json = json.loads(zf.read(geo_files[0]).decode("utf-8"))
         assert geo_json["format_version"] == "1.16.0"
         bones = geo_json["minecraft:geometry"][0]["bones"]
-        # Root bone + 1 rotated bone (blade_angled)
-        assert len(bones) == 2
-        assert bones[0]["name"] == "root_item"
-        assert bones[1]["name"] == "bone_rot_1"
-        assert bones[1]["rotation"] == [-22.5, 0.0, 0.0]
+        # Root + x/y/z display bones + 1 rotated bone (blade_angled, parented to z)
+        assert [b["name"] for b in bones[:4]] == ["root_item", "root_item_x", "root_item_y", "root_item_z"]
+        assert len(bones) == 5
+        assert bones[4]["name"] == "bone_rot_1"
+        assert bones[4]["parent"] == "root_item_z"
+        assert bones[4]["rotation"] == [-22.5, 0.0, 0.0]
 
 
 import tempfile

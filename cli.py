@@ -54,6 +54,13 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Allow oversized GUI background glyphs in font sheets (default: False, filters them out to prevent squished boxes in title).",
     )
     parser.add_argument(
+        "--icon-size",
+        type=int,
+        default=128,
+        choices=[16, 32, 64, 128, 256, 512],
+        help="Inventory icon resolution in px: 3D item icons are rendered at this size and square 2D icons are NEAREST-upscaled to it (default: 128).",
+    )
+    parser.add_argument(
         "--summary-json",
         default=None,
         help="Write a JSON conversion summary report to the specified file path.",
@@ -82,6 +89,7 @@ def main(argv: list[str] | None = None) -> int:
         bedrock_ns=args.namespace,
         bedrock_overlays=args.bedrock_overlays,
         filter_gui_font_glyphs=not args.allow_gui_font_glyphs,
+        icon_size=args.icon_size,
     )
 
     print(f"✅ Conversion completed for '{result.pack_meta.name}'")

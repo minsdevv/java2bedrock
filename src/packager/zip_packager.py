@@ -214,6 +214,28 @@ def _get_image_size(img_path: Path) -> Tuple[int, int]:
         return 16, 16
 
 
+def _upscale_icon(path: Path, target: int) -> None:
+    """Upscale a square pixel-art icon with NEAREST by an integer factor up to `target` px.
+
+    Non-square images (animation strips) and images already >= target are left untouched.
+    """
+    if target <= 0 or not path.is_file():
+        return
+    try:
+        with Image.open(path) as im:
+            im.load()
+            w, h = im.size
+            if w != h or w >= target:
+                return
+            factor = target // w
+            if factor < 2:
+                return
+            up = im.convert("RGBA").resize((w * factor, h * factor), Image.Resampling.NEAREST)
+        up.save(path)
+    except Exception:
+        return
+
+
 def convert_java_pack(
     input_path: Path,
     output_dir: Path,
@@ -221,6 +243,7 @@ def convert_java_pack(
     bedrock_ns: str = "j2b",
     bedrock_overlays: Optional[List[Union[str, Path]]] = None,
     filter_gui_font_glyphs: bool = True,
+    icon_size: int = 128,
 ) -> ConversionResult:
     """Convert a Java Resource Pack (directory or .zip) into a Bedrock .mcpack + Geyser mappings."""
     input_path = Path(input_path).resolve()
@@ -297,7 +320,7 @@ def convert_java_pack(
                     uv_offsets = {}
 
                 # Render isometric 2D icon for GUI/inventory slot
-                iso_icon = render_model_isometric(pack_root, model, size=32)
+                iso_icon = render_model_isometric(pack_root, model, size=icon_size)
                 iso_icon.save(tex_dest)
 
                 geo_doc = build_bedrock_geometry(
@@ -348,6 +371,9 @@ def convert_java_pack(
                         attach_path.write_text(
                             json.dumps(armor_attach_doc, indent=2), encoding="utf-8"
                         )
+
+            if not model.is_3d:
+                _upscale_icon(tex_dest, icon_size)
 
             icon_key = f"j2b_{model.short_name}"
             item_texture_atlas[icon_key] = {

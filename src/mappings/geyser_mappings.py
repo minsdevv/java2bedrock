@@ -1,7 +1,19 @@
 """GeyserMC Custom Mappings Exporter (Format v2 for Geyser 2.11+ / MC 26.3 and Format v1)."""
 
+import re
 from typing import Any, Dict, List
 from ..parser.item_parser import ItemPredicateRule, ParsedJavaModel
+
+
+def _has_kw(keywords, *texts: str) -> bool:
+    """True if any keyword equals a whole token (split on non-alphanumerics) of the given texts.
+
+    Whole-token matching avoids substring false positives such as 'cap' in 'capsule' or 'gun' in 'gunpowder'.
+    """
+    tokens = set()
+    for t in texts:
+        tokens.update(x for x in re.split(r"[^a-z0-9]+", (t or "").lower()) if x)
+    return any(k in tokens for k in keywords)
 
 
 def _serialize_predicate_v2(rule: ItemPredicateRule) -> Dict[str, Any]:
@@ -44,13 +56,13 @@ def build_geyser_item_mappings_v2(models: List[ParsedJavaModel]) -> Dict[str, An
         # In Bedrock, display_handheld=True rotates item icons by 45 deg in GUIs/slots (like swords/tools).
         # Only actual tools/weapons should have display_handheld=True.
         # Blocks, paintings, furniture, food, and wearable hats must remain flat (display_handheld=False).
-        is_tool_or_weapon = any(
-            kw in model.model_id.lower() or kw in model.short_name.lower() or kw in model.java_base_item.lower()
-            for kw in (
+        is_tool_or_weapon = _has_kw(
+            (
                 "sword", "pickaxe", "axe", "shovel", "hoe", "weapon", "gun", "bow",
                 "crossbow", "rod", "stick", "staff", "wand", "spear", "dagger",
                 "knife", "rifle", "pistol", "shotgun", "ak47", "handheld"
-            )
+            ),
+            model.model_id, model.short_name, model.java_base_item,
         )
         is_handheld = bool(
             (model.parent and "handheld" in model.parent)
@@ -59,9 +71,9 @@ def build_geyser_item_mappings_v2(models: List[ParsedJavaModel]) -> Dict[str, An
             "block/" in model.model_id.lower()
             or "blocks/" in model.model_id.lower()
             or (model.parent and "block" in model.parent.lower())
-            or any(
-                kw in model.model_id.lower() or kw in model.short_name.lower()
-                for kw in ("painting", "furniture", "deco", "hat", "cap", "mask", "fridge", "chair", "table")
+            or _has_kw(
+                ("painting", "furniture", "deco", "hat", "cap", "mask", "fridge", "chair", "table"),
+                model.model_id, model.short_name,
             )
         )
 
@@ -101,18 +113,18 @@ def build_geyser_item_mappings_v2(models: List[ParsedJavaModel]) -> Dict[str, An
             entry["predicate"] = valid_preds
 
         components = dict(model.components) if model.components else {}
-        is_weapon_or_tool = any(
-            kw in model.model_id.lower() or kw in model.short_name.lower()
-            for kw in (
+        is_weapon_or_tool = _has_kw(
+            (
                 "weapon", "gun", "sword", "shield", "bow", "axe", "pickaxe",
                 "shovel", "hoe", "spear", "staff", "knife", "dagger", "shotgun",
                 "revolver", "pistol", "rifle", "ak47"
-            )
+            ),
+            model.model_id, model.short_name,
         )
         is_wearable_head = (
-            any(
-                kw in model.model_id.lower()
-                for kw in ("hat/", "hat_", "helmet", "cap", "mask", "crown", "glasses", "iawearables:")
+            _has_kw(
+                ("hat", "helmet", "cap", "mask", "crown", "glasses", "iawearables"),
+                model.model_id,
             )
             or (model.components and model.components.get("minecraft:equippable", {}).get("slot") == "head")
         )
