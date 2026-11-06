@@ -317,36 +317,31 @@ def render_model_isometric(
     rad_y = math.radians(ry_deg)
     rad_z = math.radians(rz_deg)
 
+    def _rot_x(x: float, y: float, z: float) -> Tuple[float, float, float]:
+        return x, y * math.cos(rad_x) - z * math.sin(rad_x), y * math.sin(rad_x) + z * math.cos(rad_x)
+
+    def _rot_y(x: float, y: float, z: float) -> Tuple[float, float, float]:
+        return x * math.cos(rad_y) + z * math.sin(rad_y), y, -x * math.sin(rad_y) + z * math.cos(rad_y)
+
+    def _rot_z(x: float, y: float, z: float) -> Tuple[float, float, float]:
+        return x * math.cos(rad_z) - y * math.sin(rad_z), x * math.sin(rad_z) + y * math.cos(rad_z), z
+
+    def _rotate(x: float, y: float, z: float) -> Tuple[float, float, float]:
+        """Apply the GUI rotation.
+
+        Java builds it as Quaternionf.rotationXYZ(rx, ry, rz) = Rx * Ry * Rz, so a vertex is
+        rotated about Z first, then Y, then X. The legacy standard-isometric preset keeps its
+        tuned X -> Y -> Z order so existing block icons do not change.
+        """
+        if is_standard_iso:
+            return _rot_z(*_rot_y(*_rot_x(x, y, z)))
+        return _rot_x(*_rot_y(*_rot_z(x, y, z)))
+
     def project_point(pt: Tuple[float, float, float]) -> Tuple[float, float, float]:
-        rx = pt[0] - cx
-        ry = pt[1] - cy
-        rz = pt[2] - cz
-        # X rotation (Pitch)
-        x1 = rx
-        y1 = ry * math.cos(rad_x) - rz * math.sin(rad_x)
-        z1 = ry * math.sin(rad_x) + rz * math.cos(rad_x)
-        # Y rotation (Yaw)
-        x2 = x1 * math.cos(rad_y) + z1 * math.sin(rad_y)
-        y2 = y1
-        z2 = -x1 * math.sin(rad_y) + z1 * math.cos(rad_y)
-        # Z rotation (Roll)
-        x3 = x2 * math.cos(rad_z) - y2 * math.sin(rad_z)
-        y3 = x2 * math.sin(rad_z) + y2 * math.cos(rad_z)
-        z3 = z2
-        return x3, y3, z3
+        return _rotate(pt[0] - cx, pt[1] - cy, pt[2] - cz)
 
     def rotate_normal(norm: Tuple[float, float, float]) -> float:
-        nx, ny, nz = norm
-        x1 = nx
-        y1 = ny * math.cos(rad_x) - nz * math.sin(rad_x)
-        z1 = ny * math.sin(rad_x) + nz * math.cos(rad_x)
-        x2 = x1 * math.cos(rad_y) + z1 * math.sin(rad_y)
-        y2 = y1
-        z2 = -x1 * math.sin(rad_y) + z1 * math.cos(rad_y)
-        x3 = x2 * math.cos(rad_z) - y2 * math.sin(rad_z)
-        y3 = x2 * math.sin(rad_z) + y2 * math.cos(rad_z)
-        z3 = z2
-        return z3
+        return _rotate(norm[0], norm[1], norm[2])[2]
 
     # Dynamic scaling: compute projected bounding box to fit slot perfectly
     if is_standard_iso:
