@@ -1,5 +1,6 @@
 """Unified parser for Java Resource Pack item models (Legacy 1.14-1.21.1 & Modern 26.x/1.21.2+)."""
 
+from .vanilla_assets import get_vanilla_textures_dir
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
@@ -101,9 +102,11 @@ def resolve_texture_path(
         if candidate.is_file():
             return candidate
     if allow_vanilla_fallback and any(c in ("minecraft", "") for c in cands):
-        vanilla_cache = Path("/tmp/j2b_vanilla_assets/assets/minecraft/textures") / f"{rel_path}.png"
-        if vanilla_cache.is_file():
-            return vanilla_cache
+        vanilla_dir = get_vanilla_textures_dir()
+        if vanilla_dir is not None:
+            vanilla_cache = vanilla_dir / f"{rel_path}.png"
+            if vanilla_cache.is_file():
+                return vanilla_cache
     return None
 
 
