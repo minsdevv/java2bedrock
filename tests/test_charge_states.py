@@ -64,6 +64,58 @@ class TestChargeStates(unittest.TestCase):
             self.assertIn("pulling", props)
             self.assertIn("pull", props)
 
+    def test_bow_attachable_generation(self):
+        from PIL import Image
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            item_models = root / "assets" / "minecraft" / "models" / "item"
+            custom_models = root / "assets" / "custom" / "models" / "item"
+            textures_dir = root / "assets" / "custom" / "textures" / "item"
+            item_models.mkdir(parents=True, exist_ok=True)
+            custom_models.mkdir(parents=True, exist_ok=True)
+            textures_dir.mkdir(parents=True, exist_ok=True)
+
+            Image.new("RGBA", (16, 16), (255, 0, 0, 255)).save(textures_dir / "bow.png")
+
+            (item_models / "bow.json").write_text(
+                json.dumps({
+                    "parent": "item/generated",
+                    "overrides": [
+                        {"predicate": {"custom_model_data": 777}, "model": "custom:item/magic_bow"},
+                        {"predicate": {"custom_model_data": 777, "pulling": 1}, "model": "custom:item/magic_bow_pull_0"},
+                        {"predicate": {"custom_model_data": 777, "pulling": 1, "pull": 0.65}, "model": "custom:item/magic_bow_pull_1"},
+                        {"predicate": {"custom_model_data": 777, "pulling": 1, "pull": 0.9}, "model": "custom:item/magic_bow_pull_2"},
+                    ],
+                }),
+                encoding="utf-8",
+            )
+            for name in ["magic_bow", "magic_bow_pull_0", "magic_bow_pull_1", "magic_bow_pull_2"]:
+                (custom_models / f"{name}.json").write_text(
+                    json.dumps({
+                        "parent": "item/handheld",
+                        "textures": {"layer0": "custom:item/bow"},
+                    }),
+                    encoding="utf-8",
+                )
+
+            (root / "pack.mcmeta").write_text(json.dumps({"pack": {"pack_format": 15, "description": "Test"}}))
+
+            from src.packager.zip_packager import convert_java_pack
+            out = root / "output"
+            convert_java_pack(root, out, pack_name="TestBow")
+
+            att_file = out / "TestBow_bedrock" / "attachables" / "j2b" / "custom_magic_bow_777.json"
+            self.assertTrue(att_file.is_file(), "Bow attachable should be generated")
+            att = json.loads(att_file.read_text(encoding="utf-8"))["minecraft:attachable"]["description"]
+            self.assertEqual(att["render_controllers"], ["controller.render.bow"])
+            self.assertIn("bow_pulling_0", att["textures"])
+            self.assertIn("bow_pulling_1", att["textures"])
+            self.assertIn("bow_pulling_2", att["textures"])
+            self.assertEqual(att["geometry"]["default"], "geometry.bow_standby")
+            self.assertEqual(att["geometry"]["bow_pulling_2"], "geometry.bow_pulling_2")
+            self.assertIn("wield", att["animations"])
+            self.assertIn("wield_first_person_pull", att["animations"])
+
 
 if __name__ == "__main__":
     unittest.main()

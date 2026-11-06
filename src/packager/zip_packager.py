@@ -3,6 +3,7 @@
 from dataclasses import dataclass, field
 import json
 from pathlib import Path
+import re
 import shutil
 from typing import Any, Dict, List, Optional, Tuple, Union
 import uuid
@@ -17,7 +18,11 @@ from ..converter.armor_builder import (
     process_bedrock_armor_texture,
     resolve_armor_wear_texture,
 )
-from ..converter.attachable_builder import build_bedrock_attachable
+from ..converter.attachable_builder import (
+    build_bedrock_attachable,
+    build_bedrock_bow_attachable,
+    build_bedrock_crossbow_attachable,
+)
 from ..converter.block_builder import (
     build_bedrock_block_geometry,
     build_bedrock_blocks_json,
@@ -239,6 +244,64 @@ def _upscale_icon(path: Path, target: int) -> None:
         return
 
 
+def _find_bow_pull_variants(
+    models: List[ParsedJavaModel], standby: ParsedJavaModel
+) -> Tuple[Optional[ParsedJavaModel], Optional[ParsedJavaModel], Optional[ParsedJavaModel]]:
+    cmd = standby.custom_model_data_int
+
+    def score(cand: ParsedJavaModel) -> int:
+        s = 0
+        if cmd is not None and cand.custom_model_data_int == cmd:
+            s += 10
+        sb_tokens = set(re.split(r"[^a-z0-9]+", standby.short_name.lower()))
+        cand_tokens = set(re.split(r"[^a-z0-9]+", cand.short_name.lower()))
+        s += len(sb_tokens.intersection(cand_tokens))
+        return s
+
+    candidates = [
+        m for m in models
+        if m != standby and (m.java_base_item.endswith("bow") or m.java_base_item.endswith("crossbow"))
+        and score(m) >= (11 if cmd is not None else 2)
+    ]
+    pull0 = next((m for m in candidates if any(p.property_name == "pulling" for p in m.predicates) and not any(p.property_name == "pull" for p in m.predicates)), None)
+    pull1 = next((m for m in candidates if any(p.property_name == "pull" and p.threshold is not None and 0.1 <= p.threshold < 0.8 for p in m.predicates)), None)
+    pull2 = next((m for m in candidates if any(p.property_name == "pull" and p.threshold is not None and p.threshold >= 0.8 for p in m.predicates)), None)
+    return pull0, pull1, pull2
+
+
+def _find_crossbow_variants(
+    models: List[ParsedJavaModel], standby: ParsedJavaModel
+) -> Tuple[
+    Optional[ParsedJavaModel],
+    Optional[ParsedJavaModel],
+    Optional[ParsedJavaModel],
+    Optional[ParsedJavaModel],
+    Optional[ParsedJavaModel],
+]:
+    cmd = standby.custom_model_data_int
+
+    def score(cand: ParsedJavaModel) -> int:
+        s = 0
+        if cmd is not None and cand.custom_model_data_int == cmd:
+            s += 10
+        sb_tokens = set(re.split(r"[^a-z0-9]+", standby.short_name.lower()))
+        cand_tokens = set(re.split(r"[^a-z0-9]+", cand.short_name.lower()))
+        s += len(sb_tokens.intersection(cand_tokens))
+        return s
+
+    candidates = [
+        m for m in models
+        if m != standby and (m.java_base_item.endswith("crossbow") or m.java_base_item.endswith("bow"))
+        and score(m) >= (11 if cmd is not None else 2)
+    ]
+    pull0 = next((m for m in candidates if any(p.property_name == "pulling" for p in m.predicates) and not any(p.property_name == "pull" for p in m.predicates)), None)
+    pull1 = next((m for m in candidates if any(p.property_name == "pull" and p.threshold is not None and 0.1 <= p.threshold < 0.8 for p in m.predicates)), None)
+    pull2 = next((m for m in candidates if any(p.property_name == "pull" and p.threshold is not None and p.threshold >= 0.8 for p in m.predicates)), None)
+    arrow = next((m for m in candidates if any(p.property_name == "charged" for p in m.predicates) and not any(p.property_name == "firework" for p in m.predicates)), None)
+    rocket = next((m for m in candidates if any(p.property_name == "firework" for p in m.predicates)), None)
+    return pull0, pull1, pull2, arrow, rocket
+
+
 def convert_java_pack(
     input_path: Path,
     output_dir: Path,
@@ -449,19 +512,26 @@ def convert_java_pack(
 
             # Generate Bedrock client Item Definition (items/*.json)
             armor_slot = detect_armor_slot(model)
+            is_bow = model.java_base_item == "minecraft:bow" or model.java_base_item.endswith(":bow")
+            is_crossbow = model.java_base_item == "minecraft:crossbow" or model.java_base_item.endswith(":crossbow")
+            is_weapon_or_tool = (
+                is_bow or is_crossbow or
+                any(kw in model.java_base_item for kw in ("sword", "pickaxe", "axe", "shovel", "hoe", "shield", "trident", "spear"))
+            )
             item_def: Dict[str, Any] = {
                 "format_version": "1.20.20",
                 "minecraft:item": {
                     "description": {
                         "identifier": model.bedrock_identifier,
                         "menu_category": {
-                            "category": "equipment" if armor_slot else "items",
+                            "category": "equipment" if (armor_slot or is_weapon_or_tool) else "items",
                         },
                     },
                     "components": {
                         "minecraft:icon": {
                             "texture": icon_key,
                         },
+                        **({"minecraft:hand_equipped": True} if is_weapon_or_tool else {}),
                     },
                 },
             }
@@ -475,6 +545,83 @@ def convert_java_pack(
             items_path = bedrock_dir / "items" / bedrock_ns / f"{model.short_name}.json"
             items_path.parent.mkdir(parents=True, exist_ok=True)
             items_path.write_text(json.dumps(item_def, indent=2), encoding="utf-8")
+
+        # --- Generate Specialized Attachables for Bows & Crossbows ---
+        for model in models:
+            is_bow = model.java_base_item == "minecraft:bow" or model.java_base_item.endswith(":bow")
+            is_crossbow = model.java_base_item == "minecraft:crossbow" or model.java_base_item.endswith(":crossbow")
+            is_standby = not any(p.property_name in ("pulling", "pull", "charged", "firework") for p in model.predicates)
+
+            if is_bow and is_standby:
+                pull0, pull1, pull2 = _find_bow_pull_variants(models, model)
+                sb_tex = f"textures/items/{bedrock_ns}/{model.short_name}"
+                p0_tex = f"textures/items/{bedrock_ns}/{pull0.short_name}" if pull0 else sb_tex
+                p1_tex = f"textures/items/{bedrock_ns}/{pull1.short_name}" if pull1 else sb_tex
+                p2_tex = f"textures/items/{bedrock_ns}/{pull2.short_name}" if pull2 else sb_tex
+                sb_geo = f"geometry.{bedrock_ns}.{model.short_name}" if model.is_3d else None
+                p0_geo = f"geometry.{bedrock_ns}.{pull0.short_name}" if (pull0 and pull0.is_3d) else None
+                p1_geo = f"geometry.{bedrock_ns}.{pull1.short_name}" if (pull1 and pull1.is_3d) else None
+                p2_geo = f"geometry.{bedrock_ns}.{pull2.short_name}" if (pull2 and pull2.is_3d) else None
+
+                bow_attach_doc = build_bedrock_bow_attachable(
+                    model,
+                    sb_tex,
+                    p0_tex,
+                    p1_tex,
+                    p2_tex,
+                    standby_geo=sb_geo,
+                    pull0_geo=p0_geo,
+                    pull1_geo=p1_geo,
+                    pull2_geo=p2_geo,
+                )
+                attach_path = bedrock_dir / "attachables" / bedrock_ns / f"{model.short_name}.json"
+                attach_path.parent.mkdir(parents=True, exist_ok=True)
+                attach_path.write_text(json.dumps(bow_attach_doc, indent=2), encoding="utf-8")
+                report.add_asset(
+                    f"{model.bedrock_identifier}:bow",
+                    "attachable",
+                    AssetStatus.CONVERTED,
+                    outputs=[str(attach_path.relative_to(bedrock_dir))],
+                )
+            elif is_crossbow and is_standby:
+                pull0, pull1, pull2, arrow, rocket = _find_crossbow_variants(models, model)
+                sb_tex = f"textures/items/{bedrock_ns}/{model.short_name}"
+                p0_tex = f"textures/items/{bedrock_ns}/{pull0.short_name}" if pull0 else sb_tex
+                p1_tex = f"textures/items/{bedrock_ns}/{pull1.short_name}" if pull1 else sb_tex
+                p2_tex = f"textures/items/{bedrock_ns}/{pull2.short_name}" if pull2 else sb_tex
+                arr_tex = f"textures/items/{bedrock_ns}/{arrow.short_name}" if arrow else sb_tex
+                rkt_tex = f"textures/items/{bedrock_ns}/{rocket.short_name}" if rocket else sb_tex
+                sb_geo = f"geometry.{bedrock_ns}.{model.short_name}" if model.is_3d else None
+                p0_geo = f"geometry.{bedrock_ns}.{pull0.short_name}" if (pull0 and pull0.is_3d) else None
+                p1_geo = f"geometry.{bedrock_ns}.{pull1.short_name}" if (pull1 and pull1.is_3d) else None
+                p2_geo = f"geometry.{bedrock_ns}.{pull2.short_name}" if (pull2 and pull2.is_3d) else None
+                arr_geo = f"geometry.{bedrock_ns}.{arrow.short_name}" if (arrow and arrow.is_3d) else None
+                rkt_geo = f"geometry.{bedrock_ns}.{rocket.short_name}" if (rocket and rocket.is_3d) else None
+
+                cb_attach_doc = build_bedrock_crossbow_attachable(
+                    model,
+                    sb_tex,
+                    p0_tex,
+                    p1_tex,
+                    p2_tex,
+                    arrow_tex_rel=arr_tex,
+                    rocket_tex_rel=rkt_tex,
+                    standby_geo=sb_geo,
+                    pull0_geo=p0_geo,
+                    pull1_geo=p1_geo,
+                    pull2_geo=p2_geo,
+                    arrow_geo=arr_geo,
+                    rocket_geo=rkt_geo,
+                )
+                attach_path = bedrock_dir / "attachables" / bedrock_ns / f"{model.short_name}.json"
+                attach_path.parent.mkdir(parents=True, exist_ok=True)
+                attach_path.write_text(json.dumps(cb_attach_doc, indent=2), encoding="utf-8")
+                report.add_asset(
+                    f"{model.bedrock_identifier}:crossbow",
+                    "attachable",
+                    AssetStatus.CONVERTED,
+                    outputs=[str(attach_path.relative_to(bedrock_dir))],
+                )
 
         # --- Phase 3A: Custom Blocks ---
         terrain_texture_atlas: Dict[str, Any] = {}

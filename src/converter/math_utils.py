@@ -172,25 +172,41 @@ def build_display_animation(
         _axis_bones(root_bone, display_settings.get("firstperson_lefthand"),
                     pos_sign=(1, 1, -1), default_rot=[0.1, 0.1, 0.1]))
 
-    # Head slot: Java renders head items at 0.625 of model size before the display transform.
+    # Head slot:
+    # Wall paintings and wall-mounted furniture (e.g. ItemsAdder furniture_big_painting with ty <= -20, tz <= -6):
+    # In commit 56fe157, the in-game verified pose placed them directly on root_bone at y=16.0, z=1.5
+    # with un-downscaled scale (h_scale), sitting flush against the wall face without the 0.5-block protrusion.
     head_cfg = display_settings.get("head")
+    is_wall_mounted = False
     if head_cfg and "translation" in head_cfg:
         trans = head_cfg["translation"]
-        # Data-driven compensation for wall-mounted models (e.g. wall paintings with ty <= -25 and tz <= -10):
-        # In Java, ArmorStand head items use tz=-12 which pushes models into the wall block;
-        # in Bedrock, multiplying by 0.625 produces -7.5px (~0.5 block) protrusion off the wall.
-        # Adding +12.0 brings Z translation to 0.0 so the back face sits flush on the wall surface.
-        if float(trans[1]) <= -25.0 and float(trans[2]) <= -10.0:
-            head_cfg = dict(head_cfg)
-            head_cfg["translation"] = [float(trans[0]), float(trans[1]), float(trans[2]) + 12.0]
+        if float(trans[1]) <= -20.0 and float(trans[2]) <= -6.0:
+            is_wall_mounted = True
 
-    head_axis = _axis_bones(
-        root_bone, head_cfg, pos_sign=(-1, 1, 1),
-        pos_scale=0.625, default_scale=0.625,
-    )
-    if f"{root_bone}_x" not in head_axis:
-        head_axis[f"{root_bone}_x"] = {"scale": 0.625}
-    add("head", {"position": [0, 19.9, 0]}, head_axis)
+    if is_wall_mounted and head_cfg:
+        h_trans = head_cfg.get("translation", [0.0, 0.0, 0.0])
+        h_rot = head_cfg.get("rotation", [0.0, 0.0, 0.0])
+        h_scale = head_cfg.get("scale", [1.0, 1.0, 1.0])
+        animations[f"{pre}.head"] = {
+            "loop": True,
+            "bones": {
+                root_bone: {
+                    "rotation": [round(-float(h_rot[0]), 4), round(-float(h_rot[1]), 4), round(float(h_rot[2]), 4)],
+                    "position": [round(-float(h_trans[0]), 4), 16.0, 1.5],
+                    "scale": [round(float(s), 4) for s in h_scale],
+                }
+            },
+        }
+        anim_map["head"] = f"{pre}.head"
+    else:
+        # Standard head slot: Java renders head items at 0.625 of model size before the display transform.
+        head_axis = _axis_bones(
+            root_bone, head_cfg, pos_sign=(-1, 1, 1),
+            pos_scale=0.625, default_scale=0.625,
+        )
+        if f"{root_bone}_x" not in head_axis:
+            head_axis[f"{root_bone}_x"] = {"scale": 0.625}
+        add("head", {"position": [0, 19.9, 0]}, head_axis)
 
     animations["animation.j2b.disable"] = {
         "loop": True,
