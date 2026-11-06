@@ -51,9 +51,48 @@ class TestIconUpscale(unittest.TestCase):
             Image.new("RGBA", (16, 64), (255, 0, 0, 255)).save(b)
             _upscale_icon(a, 128)
             _upscale_icon(b, 128)
-            self.assertEqual(Image.open(a).size, (128, 128))
-            self.assertEqual(Image.open(b).size, (16, 64))
+            with Image.open(a) as im_a:
+                self.assertEqual(im_a.size, (128, 128))
+            with Image.open(b) as im_b:
+                self.assertEqual(im_b.size, (16, 64))
 
+
+
+    def test_wall_painting_flush_compensation(self):
+        # Wall paintings in ItemsAdder: translation=[0, -31.25, -12], scale=[1.5, 1.5, 1.5]
+        disp = {
+            "head": {
+                "rotation": [0, 180, 0],
+                "translation": [0, -31.25, -12],
+                "scale": [1.5, 1.5, 1.5],
+            }
+        }
+        doc, amap = build_display_animation("painting", disp)
+        bones = doc["animations"][amap["head"]]["bones"]
+        x_bone = bones["root_item_x"]
+        # Z position must be 0.0 (flush against wall surface, not protruding by -7.5px)
+        self.assertEqual(x_bone["position"][2], 0.0)
+        self.assertEqual(x_bone["position"][1], round(-31.25 * 0.625, 4))
+        self.assertEqual(x_bone["scale"], [round(1.5 * 0.625, 4)] * 3)
+
+    def test_golden_models_displays(self):
+        # 1. AK-47 (no head display, thirdperson handheld)
+        ak_disp = {
+            "thirdperson_righthand": {"rotation": [0, -90, 0], "translation": [0, 2.5, 1.75], "scale": [1.5, 1.5, 1.5]}
+        }
+        doc, amap = build_display_animation("ak47", ak_disp)
+        ak_bones = doc["animations"][amap["third_person"]]["bones"]
+        self.assertEqual(ak_bones["root_item_x"]["position"], [-0.0, 2.5, 1.75])
+        self.assertEqual(ak_bones["root_item_y"]["rotation"], [0, 90.0, 0])
+
+        # 2. Santa Hat (head display)
+        santa_disp = {
+            "head": {"rotation": [0, 0, 0], "translation": [0, 12.75, 0], "scale": [1.0, 1.0, 1.0]}
+        }
+        doc, amap = build_display_animation("santa_hat", santa_disp)
+        santa_bones = doc["animations"][amap["head"]]["bones"]
+        self.assertEqual(santa_bones["root_item_x"]["position"], [-0.0, round(12.75 * 0.625, 4), 0.0])
+        self.assertEqual(santa_bones["root_item_x"]["scale"], [0.625, 0.625, 0.625])
 
 if __name__ == "__main__":
     unittest.main()

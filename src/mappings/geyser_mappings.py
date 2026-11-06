@@ -47,35 +47,61 @@ def _serialize_predicate_v2(rule: ItemPredicateRule) -> Dict[str, Any]:
     return obj
 
 
+VANILLA_WEAPONS_AND_TOOLS = {
+    "wooden_sword", "stone_sword", "iron_sword", "golden_sword", "diamond_sword", "netherite_sword",
+    "wooden_pickaxe", "stone_pickaxe", "iron_pickaxe", "golden_pickaxe", "diamond_pickaxe", "netherite_pickaxe",
+    "wooden_axe", "stone_axe", "iron_axe", "golden_axe", "diamond_axe", "netherite_axe",
+    "wooden_shovel", "stone_shovel", "iron_shovel", "golden_shovel", "diamond_shovel", "netherite_shovel",
+    "wooden_hoe", "stone_hoe", "iron_hoe", "golden_hoe", "diamond_hoe", "netherite_hoe",
+    "bow", "crossbow", "trident", "mace", "fishing_rod", "carrot_on_a_stick",
+    "warped_fungus_on_a_stick", "brush", "spyglass", "shears", "flint_and_steel",
+}
+
+NON_HANDHELD_KEYWORDS = (
+    "painting", "furniture", "deco", "hat", "cap", "mask", "fridge", "chair", "table", "crown", "glasses"
+)
+
+WEAPON_TOOL_KEYWORDS = (
+    "sword", "pickaxe", "axe", "shovel", "hoe", "weapon", "gun", "bow",
+    "crossbow", "rod", "stick", "staff", "wand", "spear", "dagger",
+    "knife", "rifle", "pistol", "shotgun", "ak47", "handheld"
+)
+
+
+def is_model_handheld(model: ParsedJavaModel) -> bool:
+    """Data-driven determination if an item should have display_handheld=True in Bedrock."""
+    base_name = model.java_base_item.split(":")[-1]
+    if any(base_name.endswith(s) for s in ("_helmet", "_chestplate", "_leggings", "_boots", "elytra", "shield")):
+        return False
+
+    if "block/" in model.model_id.lower() or "blocks/" in model.model_id.lower():
+        return False
+    if any("block" in p.lower() for p in getattr(model, "parent_chain", [])):
+        return False
+    if model.parent and "block" in model.parent.lower():
+        return False
+
+    if _has_kw(NON_HANDHELD_KEYWORDS, model.model_id, model.short_name):
+        return False
+
+    if any("handheld" in p.lower() for p in getattr(model, "parent_chain", [])):
+        return True
+    if model.parent and "handheld" in model.parent.lower():
+        return True
+
+    if base_name in VANILLA_WEAPONS_AND_TOOLS:
+        return True
+
+    return _has_kw(WEAPON_TOOL_KEYWORDS, model.model_id, model.short_name)
+
+
 def build_geyser_item_mappings_v2(models: List[ParsedJavaModel]) -> Dict[str, Any]:
     """Build Geyser 2.11+ format_version: 2 item mappings JSON (Minecraft 26.3 compatible)."""
     items_by_java_id: Dict[str, List[Dict[str, Any]]] = {}
 
     for model in models:
         icon_name = f"j2b_{model.short_name}"
-        # In Bedrock, display_handheld=True rotates item icons by 45 deg in GUIs/slots (like swords/tools).
-        # Only actual tools/weapons should have display_handheld=True.
-        # Blocks, paintings, furniture, food, and wearable hats must remain flat (display_handheld=False).
-        is_tool_or_weapon = _has_kw(
-            (
-                "sword", "pickaxe", "axe", "shovel", "hoe", "weapon", "gun", "bow",
-                "crossbow", "rod", "stick", "staff", "wand", "spear", "dagger",
-                "knife", "rifle", "pistol", "shotgun", "ak47", "handheld"
-            ),
-            model.model_id, model.short_name, model.java_base_item,
-        )
-        is_handheld = bool(
-            (model.parent and "handheld" in model.parent)
-            or is_tool_or_weapon
-        ) and not (
-            "block/" in model.model_id.lower()
-            or "blocks/" in model.model_id.lower()
-            or (model.parent and "block" in model.parent.lower())
-            or _has_kw(
-                ("painting", "furniture", "deco", "hat", "cap", "mask", "fridge", "chair", "table"),
-                model.model_id, model.short_name,
-            )
-        )
+        is_handheld = is_model_handheld(model)
 
         # In Geyser v2 mappings, 'model' in a single definition specifies the item's
         # `minecraft:item_model` data component (which defaults to `java_base_item`,

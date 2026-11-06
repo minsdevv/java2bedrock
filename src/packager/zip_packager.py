@@ -60,6 +60,7 @@ from ..parser.item_parser import (
     resolve_texture_path,
 )
 from ..parser.pack_meta import PackMetadata, parse_pack_meta
+from ..report import AssetStatus, ConversionReport
 
 
 NAMESPACE_J2B = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
@@ -86,6 +87,7 @@ class ConversionResult:
     furniture_registry_path: Optional[Path] = None
     mob_registry_path: Optional[Path] = None
     warnings: List[str] = field(default_factory=list)
+    report: Optional[ConversionReport] = None
 
 
 def _deep_merge_dict(base: Dict[str, Any], override: Dict[str, Any]) -> Dict[str, Any]:
@@ -244,6 +246,7 @@ def convert_java_pack(
     bedrock_overlays: Optional[List[Union[str, Path]]] = None,
     filter_gui_font_glyphs: bool = True,
     icon_size: int = 128,
+    report_path: Optional[Union[str, Path]] = None,
 ) -> ConversionResult:
     """Convert a Java Resource Pack (directory or .zip) into a Bedrock .mcpack + Geyser mappings."""
     input_path = Path(input_path).resolve()
@@ -287,6 +290,14 @@ def convert_java_pack(
 
         models = parse_java_pack_items(pack_root, bedrock_ns=bedrock_ns)
         warnings: List[str] = []
+        report = ConversionReport(
+            pack={
+                "name": meta.name,
+                "description": meta.description,
+                "pack_format": meta.pack_format,
+                "namespaces": meta.namespaces,
+            }
+        )
         item_texture_atlas: Dict[str, Any] = {}
         count_3d = 0
         count_2d = 0
@@ -339,6 +350,30 @@ def convert_java_pack(
                 attach_path = bedrock_dir / "attachables" / bedrock_ns / f"{model.short_name}.json"
                 attach_path.parent.mkdir(parents=True, exist_ok=True)
                 attach_path.write_text(json.dumps(attach_doc, indent=2), encoding="utf-8")
+
+                if atlas_img is not None:
+                    report.add_asset(
+                        model.bedrock_identifier,
+                        "item",
+                        AssetStatus.CONVERTED,
+                        outputs=[
+                            str(attach_path.relative_to(bedrock_dir)),
+                            str(geo_path.relative_to(bedrock_dir)),
+                            str(anim_path.relative_to(bedrock_dir)),
+                        ],
+                    )
+                else:
+                    report.add_asset(
+                        model.bedrock_identifier,
+                        "item",
+                        AssetStatus.APPROXIMATED,
+                        reasons=["missing_texture_placeholder"],
+                        outputs=[
+                            str(attach_path.relative_to(bedrock_dir)),
+                            str(geo_path.relative_to(bedrock_dir)),
+                            str(anim_path.relative_to(bedrock_dir)),
+                        ],
+                    )
             else:
                 count_2d += 1
                 composed_img = compose_2d_layered_texture(pack_root, model)
@@ -352,6 +387,22 @@ def convert_java_pack(
                         warnings.append(f"Missing texture for model '{model.model_id}', generated placeholder.")
                         img = Image.new("RGBA", (16, 16), (255, 0, 255, 255))
                         img.save(tex_dest)
+
+                if composed_img is not None or (tex_src and tex_src.is_file()):
+                    report.add_asset(
+                        model.bedrock_identifier,
+                        "item",
+                        AssetStatus.CONVERTED,
+                        outputs=[str(tex_dest.relative_to(bedrock_dir))],
+                    )
+                else:
+                    report.add_asset(
+                        model.bedrock_identifier,
+                        "item",
+                        AssetStatus.APPROXIMATED,
+                        reasons=["missing_texture_placeholder"],
+                        outputs=[str(tex_dest.relative_to(bedrock_dir))],
+                    )
 
                 # Check if this 2D item is a custom armor piece / equipment
                 armor_slot = detect_armor_slot(model)
@@ -370,6 +421,12 @@ def convert_java_pack(
                         attach_path.parent.mkdir(parents=True, exist_ok=True)
                         attach_path.write_text(
                             json.dumps(armor_attach_doc, indent=2), encoding="utf-8"
+                        )
+                        report.add_asset(
+                            f"{model.bedrock_identifier}:{armor_slot}",
+                            "armor",
+                            AssetStatus.CONVERTED,
+                            outputs=[str(attach_path.relative_to(bedrock_dir))],
                         )
 
             if not model.is_3d:
@@ -440,6 +497,12 @@ def convert_java_pack(
             terrain_texture_atlas[terrain_key] = {
                 "textures": blk_tex_rel,
             }
+            report.add_asset(
+                blk.bedrock_identifier,
+                "block",
+                AssetStatus.CONVERTED,
+                outputs=[str(blk_tex_dest.relative_to(bedrock_dir))],
+            )
 
             if not blk.is_unit_cube:
                 blk_geo = build_bedrock_block_geometry(
@@ -526,6 +589,12 @@ def convert_java_pack(
             furn_ent_path.write_text(
                 json.dumps(furn_entity_doc, indent=2), encoding="utf-8"
             )
+            report.add_asset(
+                furn.bedrock_entity_id,
+                "furniture",
+                AssetStatus.CONVERTED,
+                outputs=[str(furn_geo_path.relative_to(bedrock_dir))],
+            )
 
         # --- Phase 4: Custom Mobs (.bbmodel) ---
         mob_list = parse_java_pack_bbmodels(pack_root, bedrock_ns=bedrock_ns)
@@ -549,6 +618,12 @@ def convert_java_pack(
             )
             mob_geo_path.parent.mkdir(parents=True, exist_ok=True)
             mob_geo_path.write_text(json.dumps(mob_geo, indent=2), encoding="utf-8")
+            report.add_asset(
+                mob.bedrock_entity_id,
+                "mob",
+                AssetStatus.CONVERTED,
+                outputs=[str(mob_geo_path.relative_to(bedrock_dir))],
+            )
 
             mob_anim = build_bedrock_mob_animations(mob)
             mob_anim_path = (
@@ -676,6 +751,20 @@ def convert_java_pack(
                     arcname = file_path.relative_to(bedrock_dir).as_posix()
                     zf.write(file_path, arcname)
 
+        report.totals = {
+            "total_items": count_3d + count_2d,
+            "items_3d": count_3d,
+            "items_2d": count_2d,
+            "total_blocks": len(custom_blocks),
+            "total_furniture": len(furniture_list),
+            "total_mobs": len(mob_list),
+            "total_font_glyphs": total_font_glyphs,
+            "total_sounds": total_sounds,
+        }
+        report.warnings = list(warnings)
+        if report_path:
+            report.write_json(Path(report_path))
+
         return ConversionResult(
             pack_meta=meta,
             bedrock_pack_dir=bedrock_dir,
@@ -694,6 +783,7 @@ def convert_java_pack(
             furniture_registry_path=furniture_registry_path,
             mob_registry_path=mob_registry_path,
             warnings=warnings,
+            report=report,
         )
     finally:
         if temp_extract_dir and temp_extract_dir.exists():

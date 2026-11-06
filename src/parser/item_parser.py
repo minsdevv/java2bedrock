@@ -38,6 +38,7 @@ class ParsedJavaModel:
     short_name: str  # e.g. "ruby_sword"
     is_3d: bool
     parent: Optional[str] = None
+    parent_chain: List[str] = field(default_factory=list)
     textures: Dict[str, str] = field(default_factory=dict)
     elements: List[Dict[str, Any]] = field(default_factory=list)
     display: Dict[str, Dict[str, List[float]]] = field(default_factory=dict)
@@ -165,6 +166,7 @@ def load_resolved_model_json(
     if parent_rel in ("item/generated", "item/handheld", "item/handheld_rod", "builtin/generated", "builtin/entity"):
         merged = dict(current)
         merged["_root_parent"] = parent_rel
+        merged["_parent_chain"] = [parent_ref]
         return merged
 
     if parent_rel in (
@@ -173,6 +175,7 @@ def load_resolved_model_json(
     ) or parent_rel.startswith("block/cube"):
         merged = dict(current)
         merged["_root_parent"] = parent_rel
+        merged["_parent_chain"] = [parent_ref]
         if "elements" not in merged:
             tex_map = dict(merged.get("textures", {}))
             primary = (
@@ -192,6 +195,9 @@ def load_resolved_model_json(
 
     parent_data = load_resolved_model_json(pack_root, parent_ref, visited)
     merged: Dict[str, Any] = dict(parent_data)
+    chain = list(parent_data.get("_parent_chain", []))
+    chain.append(parent_ref)
+    merged["_parent_chain"] = chain
 
     # Merge textures
     merged_textures = dict(parent_data.get("textures", {}))
@@ -284,6 +290,7 @@ def _build_parsed_model(
         short_name=short_name,
         is_3d=is_3d,
         parent=parent,
+        parent_chain=resolved.get("_parent_chain", []),
         textures=textures,
         elements=elements,
         display=display,

@@ -1,0 +1,1720 @@
+{
+  "items": {
+    "j2b:deco_mini_fridge_10162": {
+      "animation_bones": {
+        "first_person": {
+          "root_item": {
+            "position": [
+              4,
+              10,
+              4
+            ],
+            "rotation": [
+              90,
+              60,
+              -40
+            ],
+            "scale": 1.5
+          },
+          "root_item_x": {
+            "rotation": [
+              0.1,
+              0.1,
+              0.1
+            ],
+            "scale": [
+              0.5,
+              0.5,
+              0.5
+            ]
+          }
+        },
+        "first_person_left": {
+          "root_item": {
+            "position": [
+              4,
+              10,
+              4
+            ],
+            "rotation": [
+              90,
+              60,
+              -40
+            ],
+            "scale": 1.5
+          },
+          "root_item_x": {
+            "rotation": [
+              0.1,
+              0.1,
+              0.1
+            ]
+          }
+        },
+        "head": {
+          "root_item": {
+            "position": [
+              0,
+              19.9,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              -0.0,
+              -8.2812,
+              0.625
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ],
+            "scale": [
+              1.5,
+              1.5,
+              1.5312
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              180.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        },
+        "third_person": {
+          "root_item": {
+            "position": [
+              0,
+              13,
+              -3
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              -0.0,
+              2.5,
+              0.25
+            ],
+            "rotation": [
+              -66.0,
+              0,
+              0
+            ],
+            "scale": [
+              0.2,
+              0.2,
+              0.2
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              42.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        },
+        "third_person_left": {
+          "root_item": {
+            "position": [
+              0,
+              13,
+              -3
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ]
+          }
+        }
+      },
+      "animations": {
+        "first_person": "animation.j2b.deco_mini_fridge_10162.first_person",
+        "first_person_head": "animation.j2b.disable",
+        "first_person_left": "animation.j2b.deco_mini_fridge_10162.first_person_left",
+        "head": "animation.j2b.deco_mini_fridge_10162.head",
+        "third_person": "animation.j2b.deco_mini_fridge_10162.third_person",
+        "third_person_left": "animation.j2b.deco_mini_fridge_10162.third_person_left"
+      },
+      "bone_names": [
+        "root_item",
+        "root_item_x",
+        "root_item_y",
+        "root_item_z"
+      ],
+      "geo_hash": "72606145c6777480",
+      "geometry": {
+        "default": "geometry.j2b.deco_mini_fridge_10162"
+      },
+      "materials": {
+        "default": "entity_alphatest",
+        "enchanted": "entity_alphatest_glint"
+      },
+      "root_binding": "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)",
+      "scripts": {
+        "animate": [
+          {
+            "third_person": "v.main_hand && !c.is_first_person"
+          },
+          {
+            "third_person_left": "v.off_hand && !c.is_first_person"
+          },
+          {
+            "head": "v.head && !c.is_first_person"
+          },
+          {
+            "first_person": "v.main_hand && c.is_first_person"
+          },
+          {
+            "first_person_left": "v.off_hand && c.is_first_person"
+          },
+          {
+            "first_person_head": "v.head && c.is_first_person"
+          }
+        ],
+        "pre_animation": [
+          "v.main_hand = c.item_slot == 'main_hand';",
+          "v.off_hand = c.item_slot == 'off_hand';",
+          "v.head = c.item_slot == 'head';"
+        ]
+      }
+    },
+    "j2b:dropbox_pack_diamond_sword_katana_1001": {
+      "animation_bones": {
+        "first_person": {
+          "root_item": {
+            "position": [
+              4,
+              10,
+              4
+            ],
+            "rotation": [
+              90,
+              60,
+              -40
+            ],
+            "scale": 1.5
+          },
+          "root_item_x": {
+            "position": [
+              -1.5,
+              0.5,
+              0.5
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ],
+            "scale": [
+              0.5,
+              0.5,
+              0.5
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              -115.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              12.0
+            ]
+          }
+        },
+        "first_person_left": {
+          "root_item": {
+            "position": [
+              4,
+              10,
+              4
+            ],
+            "rotation": [
+              90,
+              60,
+              -40
+            ],
+            "scale": 1.5
+          },
+          "root_item_x": {
+            "position": [
+              1.5,
+              0.5,
+              0.5
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ],
+            "scale": [
+              0.5,
+              0.5,
+              0.5
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              90.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              -15.0
+            ]
+          }
+        },
+        "head": {
+          "root_item": {
+            "position": [
+              0,
+              19.9,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              11.875,
+              0.0,
+              0.0
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ],
+            "scale": [
+              0.9375,
+              0.9375,
+              0.9375
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              -0.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              -90.0
+            ]
+          }
+        },
+        "third_person": {
+          "root_item": {
+            "position": [
+              0,
+              13,
+              -3
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              -0.0,
+              2.5,
+              1.75
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ],
+            "scale": [
+              1.5,
+              1.5,
+              1.5
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              -90.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        },
+        "third_person_left": {
+          "root_item": {
+            "position": [
+              0,
+              13,
+              -3
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              0.0,
+              1.5,
+              1.0
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              -90.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        }
+      },
+      "animations": {
+        "first_person": "animation.j2b.dropbox_pack_diamond_sword_katana_1001.first_person",
+        "first_person_head": "animation.j2b.disable",
+        "first_person_left": "animation.j2b.dropbox_pack_diamond_sword_katana_1001.first_person_left",
+        "head": "animation.j2b.dropbox_pack_diamond_sword_katana_1001.head",
+        "third_person": "animation.j2b.dropbox_pack_diamond_sword_katana_1001.third_person",
+        "third_person_left": "animation.j2b.dropbox_pack_diamond_sword_katana_1001.third_person_left"
+      },
+      "bone_names": [
+        "root_item",
+        "root_item_x",
+        "root_item_y",
+        "root_item_z",
+        "bone_rot_1"
+      ],
+      "geo_hash": "54a6af08d7535eac",
+      "geometry": {
+        "default": "geometry.j2b.dropbox_pack_diamond_sword_katana_1001"
+      },
+      "materials": {
+        "default": "entity_alphatest",
+        "enchanted": "entity_alphatest_glint"
+      },
+      "root_binding": "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)",
+      "scripts": {
+        "animate": [
+          {
+            "third_person": "v.main_hand && !c.is_first_person"
+          },
+          {
+            "third_person_left": "v.off_hand && !c.is_first_person"
+          },
+          {
+            "head": "v.head && !c.is_first_person"
+          },
+          {
+            "first_person": "v.main_hand && c.is_first_person"
+          },
+          {
+            "first_person_left": "v.off_hand && c.is_first_person"
+          },
+          {
+            "first_person_head": "v.head && c.is_first_person"
+          }
+        ],
+        "pre_animation": [
+          "v.main_hand = c.item_slot == 'main_hand';",
+          "v.off_hand = c.item_slot == 'off_hand';",
+          "v.head = c.item_slot == 'head';"
+        ]
+      }
+    },
+    "j2b:dropbox_pack_netherite_sword_dragon_1002": {
+      "animation_bones": {
+        "first_person": {
+          "root_item": {
+            "position": [
+              4,
+              10,
+              4
+            ],
+            "rotation": [
+              90,
+              60,
+              -40
+            ],
+            "scale": 1.5
+          },
+          "root_item_x": {
+            "rotation": [
+              0.1,
+              0.1,
+              0.1
+            ],
+            "scale": [
+              0.58,
+              0.58,
+              0.58
+            ]
+          }
+        },
+        "first_person_left": {
+          "root_item": {
+            "position": [
+              4,
+              10,
+              4
+            ],
+            "rotation": [
+              90,
+              60,
+              -40
+            ],
+            "scale": 1.5
+          },
+          "root_item_x": {
+            "rotation": [
+              0.1,
+              0.1,
+              0.1
+            ],
+            "scale": [
+              0.58,
+              0.58,
+              0.58
+            ]
+          }
+        },
+        "head": {
+          "root_item": {
+            "position": [
+              0,
+              19.9,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              3.2812,
+              -2.6562,
+              -5.0
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ],
+            "scale": 0.625
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              -0.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              90.0
+            ]
+          }
+        },
+        "third_person": {
+          "root_item": {
+            "position": [
+              0,
+              13,
+              -3
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              -0.0,
+              2.75,
+              0.5
+            ],
+            "scale": [
+              0.9,
+              0.9,
+              0.9
+            ]
+          }
+        },
+        "third_person_left": {
+          "root_item": {
+            "position": [
+              0,
+              13,
+              -3
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              0.0,
+              2.75,
+              0.5
+            ],
+            "scale": [
+              0.9,
+              0.9,
+              0.9
+            ]
+          }
+        }
+      },
+      "animations": {
+        "first_person": "animation.j2b.dropbox_pack_netherite_sword_dragon_1002.first_person",
+        "first_person_head": "animation.j2b.disable",
+        "first_person_left": "animation.j2b.dropbox_pack_netherite_sword_dragon_1002.first_person_left",
+        "head": "animation.j2b.dropbox_pack_netherite_sword_dragon_1002.head",
+        "third_person": "animation.j2b.dropbox_pack_netherite_sword_dragon_1002.third_person",
+        "third_person_left": "animation.j2b.dropbox_pack_netherite_sword_dragon_1002.third_person_left"
+      },
+      "bone_names": [
+        "root_item",
+        "root_item_x",
+        "root_item_y",
+        "root_item_z",
+        "bone_rot_1",
+        "bone_rot_2",
+        "bone_rot_3",
+        "bone_rot_4",
+        "bone_rot_5",
+        "bone_rot_6",
+        "bone_rot_7",
+        "bone_rot_8",
+        "bone_rot_9",
+        "bone_rot_10",
+        "bone_rot_11",
+        "bone_rot_12",
+        "bone_rot_13"
+      ],
+      "geo_hash": "f70758a831824123",
+      "geometry": {
+        "default": "geometry.j2b.dropbox_pack_netherite_sword_dragon_1002"
+      },
+      "materials": {
+        "default": "entity_alphatest",
+        "enchanted": "entity_alphatest_glint"
+      },
+      "root_binding": "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)",
+      "scripts": {
+        "animate": [
+          {
+            "third_person": "v.main_hand && !c.is_first_person"
+          },
+          {
+            "third_person_left": "v.off_hand && !c.is_first_person"
+          },
+          {
+            "head": "v.head && !c.is_first_person"
+          },
+          {
+            "first_person": "v.main_hand && c.is_first_person"
+          },
+          {
+            "first_person_left": "v.off_hand && c.is_first_person"
+          },
+          {
+            "first_person_head": "v.head && c.is_first_person"
+          }
+        ],
+        "pre_animation": [
+          "v.main_hand = c.item_slot == 'main_hand';",
+          "v.off_hand = c.item_slot == 'off_hand';",
+          "v.head = c.item_slot == 'head';"
+        ]
+      }
+    },
+    "j2b:festivities_christmas_santa_hat_10033": {
+      "animation_bones": {
+        "first_person": {
+          "root_item": {
+            "position": [
+              4,
+              10,
+              4
+            ],
+            "rotation": [
+              90,
+              60,
+              -40
+            ],
+            "scale": 1.5
+          },
+          "root_item_x": {
+            "position": [
+              -0.0,
+              -1.0,
+              -0.0
+            ],
+            "rotation": [
+              0.1,
+              0.1,
+              0.1
+            ],
+            "scale": [
+              0.3,
+              0.3,
+              0.3
+            ]
+          }
+        },
+        "first_person_left": {
+          "root_item": {
+            "position": [
+              4,
+              10,
+              4
+            ],
+            "rotation": [
+              90,
+              60,
+              -40
+            ],
+            "scale": 1.5
+          },
+          "root_item_x": {
+            "position": [
+              0.0,
+              -1.0,
+              -0.0
+            ],
+            "rotation": [
+              0.1,
+              0.1,
+              0.1
+            ],
+            "scale": [
+              0.3,
+              0.3,
+              0.3
+            ]
+          }
+        },
+        "head": {
+          "root_item": {
+            "position": [
+              0,
+              19.9,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              -0.0,
+              7.9688,
+              0.0
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ],
+            "scale": 0.625
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              -90.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        },
+        "third_person": {
+          "root_item": {
+            "position": [
+              0,
+              13,
+              -3
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              -0.0,
+              3.0,
+              0.0
+            ],
+            "rotation": [
+              -45.0,
+              0,
+              0
+            ],
+            "scale": [
+              0.3,
+              0.3,
+              0.3
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              -45.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        },
+        "third_person_left": {
+          "root_item": {
+            "position": [
+              0,
+              13,
+              -3
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ]
+          }
+        }
+      },
+      "animations": {
+        "first_person": "animation.j2b.festivities_christmas_santa_hat_10033.first_person",
+        "first_person_head": "animation.j2b.disable",
+        "first_person_left": "animation.j2b.festivities_christmas_santa_hat_10033.first_person_left",
+        "head": "animation.j2b.festivities_christmas_santa_hat_10033.head",
+        "third_person": "animation.j2b.festivities_christmas_santa_hat_10033.third_person",
+        "third_person_left": "animation.j2b.festivities_christmas_santa_hat_10033.third_person_left"
+      },
+      "bone_names": [
+        "root_item",
+        "root_item_x",
+        "root_item_y",
+        "root_item_z",
+        "bone_rot_1",
+        "bone_rot_2"
+      ],
+      "geo_hash": "04dc3b41723ee95f",
+      "geometry": {
+        "default": "geometry.j2b.festivities_christmas_santa_hat_10033"
+      },
+      "materials": {
+        "default": "entity_alphatest",
+        "enchanted": "entity_alphatest_glint"
+      },
+      "root_binding": "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)",
+      "scripts": {
+        "animate": [
+          {
+            "third_person": "v.main_hand && !c.is_first_person"
+          },
+          {
+            "third_person_left": "v.off_hand && !c.is_first_person"
+          },
+          {
+            "head": "v.head && !c.is_first_person"
+          },
+          {
+            "first_person": "v.main_hand && c.is_first_person"
+          },
+          {
+            "first_person_left": "v.off_hand && c.is_first_person"
+          },
+          {
+            "first_person_head": "v.head && c.is_first_person"
+          }
+        ],
+        "pre_animation": [
+          "v.main_hand = c.item_slot == 'main_hand';",
+          "v.off_hand = c.item_slot == 'off_hand';",
+          "v.head = c.item_slot == 'head';"
+        ]
+      }
+    },
+    "j2b:festivities_halloween_witch_hat_10030": {
+      "animation_bones": {
+        "first_person": {
+          "root_item": {
+            "position": [
+              4,
+              10,
+              4
+            ],
+            "rotation": [
+              90,
+              60,
+              -40
+            ],
+            "scale": 1.5
+          },
+          "root_item_x": {
+            "position": [
+              -2.5,
+              -1.25,
+              -1.0
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ],
+            "scale": [
+              0.3,
+              0.3,
+              0.3
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              -119.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        },
+        "first_person_left": {
+          "root_item": {
+            "position": [
+              4,
+              10,
+              4
+            ],
+            "rotation": [
+              90,
+              60,
+              -40
+            ],
+            "scale": 1.5
+          },
+          "root_item_x": {
+            "position": [
+              2.5,
+              1.0,
+              -0.25
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ],
+            "scale": [
+              0.3,
+              0.3,
+              0.3
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              -119.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        },
+        "head": {
+          "root_item": {
+            "position": [
+              0,
+              19.9,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              -0.3125,
+              -1.25,
+              0.0
+            ],
+            "scale": 0.625
+          }
+        },
+        "third_person": {
+          "root_item": {
+            "position": [
+              0,
+              13,
+              -3
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              -0.5,
+              -0.25,
+              -2.75
+            ],
+            "rotation": [
+              -45.0,
+              0,
+              0
+            ],
+            "scale": [
+              0.3,
+              0.3,
+              0.3
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              -0.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        },
+        "third_person_left": {
+          "root_item": {
+            "position": [
+              0,
+              13,
+              -3
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ]
+          }
+        }
+      },
+      "animations": {
+        "first_person": "animation.j2b.festivities_halloween_witch_hat_10030.first_person",
+        "first_person_head": "animation.j2b.disable",
+        "first_person_left": "animation.j2b.festivities_halloween_witch_hat_10030.first_person_left",
+        "head": "animation.j2b.festivities_halloween_witch_hat_10030.head",
+        "third_person": "animation.j2b.festivities_halloween_witch_hat_10030.third_person",
+        "third_person_left": "animation.j2b.festivities_halloween_witch_hat_10030.third_person_left"
+      },
+      "bone_names": [
+        "root_item",
+        "root_item_x",
+        "root_item_y",
+        "root_item_z",
+        "bone_rot_1"
+      ],
+      "geo_hash": "2bca276a5273d3bd",
+      "geometry": {
+        "default": "geometry.j2b.festivities_halloween_witch_hat_10030"
+      },
+      "materials": {
+        "default": "entity_alphatest",
+        "enchanted": "entity_alphatest_glint"
+      },
+      "root_binding": "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)",
+      "scripts": {
+        "animate": [
+          {
+            "third_person": "v.main_hand && !c.is_first_person"
+          },
+          {
+            "third_person_left": "v.off_hand && !c.is_first_person"
+          },
+          {
+            "head": "v.head && !c.is_first_person"
+          },
+          {
+            "first_person": "v.main_hand && c.is_first_person"
+          },
+          {
+            "first_person_left": "v.off_hand && c.is_first_person"
+          },
+          {
+            "first_person_head": "v.head && c.is_first_person"
+          }
+        ],
+        "pre_animation": [
+          "v.main_hand = c.item_slot == 'main_hand';",
+          "v.off_hand = c.item_slot == 'off_hand';",
+          "v.head = c.item_slot == 'head';"
+        ]
+      }
+    },
+    "j2b:survival_bronze_helmet_10000": {
+      "animation_bones": {},
+      "animations": null,
+      "geometry": {
+        "default": "geometry.humanoid.armor.helmet"
+      },
+      "materials": {
+        "default": "armor",
+        "enchanted": "armor_enchanted"
+      },
+      "scripts": {
+        "parent_setup": "v.helmet_layer_visible = 0.0;"
+      }
+    },
+    "j2b:survival_shields_obsidian_shield_10000": {
+      "animation_bones": {
+        "first_person": {
+          "root_item": {
+            "position": [
+              4,
+              10,
+              4
+            ],
+            "rotation": [
+              90,
+              60,
+              -40
+            ],
+            "scale": 1.5
+          },
+          "root_item_x": {
+            "position": [
+              0.19,
+              -1.51,
+              2.27
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              -90.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        },
+        "first_person_left": {
+          "root_item": {
+            "position": [
+              4,
+              10,
+              4
+            ],
+            "rotation": [
+              90,
+              60,
+              -40
+            ],
+            "scale": 1.5
+          },
+          "root_item_x": {
+            "position": [
+              0.57,
+              -2.27,
+              -7.18
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              -90.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        },
+        "head": {
+          "root_item": {
+            "position": [
+              0,
+              19.9,
+              0
+            ]
+          },
+          "root_item_x": {
+            "scale": 0.625
+          }
+        },
+        "third_person": {
+          "root_item": {
+            "position": [
+              0,
+              13,
+              -3
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              -8.0,
+              -2.0,
+              1.0
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              -0.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        },
+        "third_person_left": {
+          "root_item": {
+            "position": [
+              0,
+              13,
+              -3
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              8.0,
+              -2.0,
+              2.0
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ],
+            "scale": [
+              1.0,
+              1.0,
+              1.0
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              180.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        }
+      },
+      "animations": {
+        "first_person": "animation.j2b.survival_shields_obsidian_shield_10000.first_person",
+        "first_person_head": "animation.j2b.disable",
+        "first_person_left": "animation.j2b.survival_shields_obsidian_shield_10000.first_person_left",
+        "head": "animation.j2b.survival_shields_obsidian_shield_10000.head",
+        "third_person": "animation.j2b.survival_shields_obsidian_shield_10000.third_person",
+        "third_person_left": "animation.j2b.survival_shields_obsidian_shield_10000.third_person_left"
+      },
+      "bone_names": [
+        "root_item",
+        "root_item_x",
+        "root_item_y",
+        "root_item_z"
+      ],
+      "geo_hash": "78deb70e433c576c",
+      "geometry": {
+        "default": "geometry.j2b.survival_shields_obsidian_shield_10000"
+      },
+      "materials": {
+        "default": "entity_alphatest",
+        "enchanted": "entity_alphatest_glint"
+      },
+      "root_binding": "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)",
+      "scripts": {
+        "animate": [
+          {
+            "third_person": "v.main_hand && !c.is_first_person"
+          },
+          {
+            "third_person_left": "v.off_hand && !c.is_first_person"
+          },
+          {
+            "head": "v.head && !c.is_first_person"
+          },
+          {
+            "first_person": "v.main_hand && c.is_first_person"
+          },
+          {
+            "first_person_left": "v.off_hand && c.is_first_person"
+          },
+          {
+            "first_person_head": "v.head && c.is_first_person"
+          }
+        ],
+        "pre_animation": [
+          "v.main_hand = c.item_slot == 'main_hand';",
+          "v.off_hand = c.item_slot == 'off_hand';",
+          "v.head = c.item_slot == 'head';"
+        ]
+      }
+    },
+    "j2b:weapons_ak47_10002": {
+      "animation_bones": {
+        "first_person": {
+          "root_item": {
+            "position": [
+              4,
+              10,
+              4
+            ],
+            "rotation": [
+              90,
+              60,
+              -40
+            ],
+            "scale": 1.5
+          },
+          "root_item_x": {
+            "position": [
+              -0.0,
+              3.0,
+              4.0
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              280.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        },
+        "first_person_left": {
+          "root_item": {
+            "position": [
+              4,
+              10,
+              4
+            ],
+            "rotation": [
+              90,
+              60,
+              -40
+            ],
+            "scale": 1.5
+          },
+          "root_item_x": {
+            "position": [
+              0.0,
+              3.0,
+              4.0
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              100.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        },
+        "head": {
+          "root_item": {
+            "position": [
+              0,
+              19.9,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              -0.0,
+              8.9062,
+              0.0
+            ],
+            "scale": 0.625
+          }
+        },
+        "third_person": {
+          "root_item": {
+            "position": [
+              0,
+              13,
+              -3
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              -0.0,
+              2.0,
+              -1.75
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ],
+            "scale": [
+              0.8,
+              0.8,
+              0.8
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              -90.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        },
+        "third_person_left": {
+          "root_item": {
+            "position": [
+              0,
+              13,
+              -3
+            ],
+            "rotation": [
+              90,
+              0,
+              0
+            ]
+          },
+          "root_item_x": {
+            "position": [
+              0.0,
+              2.0,
+              -5.0
+            ],
+            "rotation": [
+              -0.0,
+              0,
+              0
+            ]
+          },
+          "root_item_y": {
+            "rotation": [
+              0,
+              90.0,
+              0
+            ]
+          },
+          "root_item_z": {
+            "rotation": [
+              0,
+              0,
+              0.0
+            ]
+          }
+        }
+      },
+      "animations": {
+        "first_person": "animation.j2b.weapons_ak47_10002.first_person",
+        "first_person_head": "animation.j2b.disable",
+        "first_person_left": "animation.j2b.weapons_ak47_10002.first_person_left",
+        "head": "animation.j2b.weapons_ak47_10002.head",
+        "third_person": "animation.j2b.weapons_ak47_10002.third_person",
+        "third_person_left": "animation.j2b.weapons_ak47_10002.third_person_left"
+      },
+      "bone_names": [
+        "root_item",
+        "root_item_x",
+        "root_item_y",
+        "root_item_z",
+        "bone_rot_1"
+      ],
+      "geo_hash": "87739164b7a33ab2",
+      "geometry": {
+        "default": "geometry.j2b.weapons_ak47_10002"
+      },
+      "materials": {
+        "default": "entity_alphatest",
+        "enchanted": "entity_alphatest_glint"
+      },
+      "root_binding": "c.item_slot == 'head' ? 'head' : q.item_slot_to_bone_name(c.item_slot)",
+      "scripts": {
+        "animate": [
+          {
+            "third_person": "v.main_hand && !c.is_first_person"
+          },
+          {
+            "third_person_left": "v.off_hand && !c.is_first_person"
+          },
+          {
+            "head": "v.head && !c.is_first_person"
+          },
+          {
+            "first_person": "v.main_hand && c.is_first_person"
+          },
+          {
+            "first_person_left": "v.off_hand && c.is_first_person"
+          },
+          {
+            "first_person_head": "v.head && c.is_first_person"
+          }
+        ],
+        "pre_animation": [
+          "v.main_hand = c.item_slot == 'main_hand';",
+          "v.off_hand = c.item_slot == 'off_hand';",
+          "v.head = c.item_slot == 'head';"
+        ]
+      }
+    }
+  },
+  "mappings": {
+    "j2b:deco_mini_fridge_10162": {
+      "bedrock_options": {
+        "allow_offhand": true,
+        "display_handheld": false,
+        "icon": "j2b_deco_mini_fridge_10162"
+      },
+      "components": null,
+      "java_base_item": "minecraft:paper",
+      "model": "minecraft:paper"
+    },
+    "j2b:dropbox_pack_diamond_sword_katana_1001": {
+      "bedrock_options": {
+        "allow_offhand": true,
+        "display_handheld": true,
+        "icon": "j2b_dropbox_pack_diamond_sword_katana_1001"
+      },
+      "components": null,
+      "java_base_item": "minecraft:diamond_sword",
+      "model": "minecraft:diamond_sword"
+    },
+    "j2b:dropbox_pack_netherite_sword_dragon_1002": {
+      "bedrock_options": {
+        "allow_offhand": true,
+        "display_handheld": true,
+        "icon": "j2b_dropbox_pack_netherite_sword_dragon_1002"
+      },
+      "components": null,
+      "java_base_item": "minecraft:netherite_sword",
+      "model": "minecraft:netherite_sword"
+    },
+    "j2b:festivities_christmas_santa_hat_10033": {
+      "bedrock_options": {
+        "allow_offhand": true,
+        "display_handheld": false,
+        "icon": "j2b_festivities_christmas_santa_hat_10033"
+      },
+      "components": {
+        "minecraft:equippable": {
+          "slot": "head"
+        }
+      },
+      "java_base_item": "minecraft:feather",
+      "model": "minecraft:feather"
+    },
+    "j2b:festivities_halloween_witch_hat_10030": {
+      "bedrock_options": {
+        "allow_offhand": true,
+        "display_handheld": false,
+        "icon": "j2b_festivities_halloween_witch_hat_10030"
+      },
+      "components": {
+        "minecraft:equippable": {
+          "slot": "head"
+        }
+      },
+      "java_base_item": "minecraft:feather",
+      "model": "minecraft:feather"
+    },
+    "j2b:survival_bronze_helmet_10000": {
+      "bedrock_options": {
+        "allow_offhand": true,
+        "display_handheld": false,
+        "icon": "j2b_survival_bronze_helmet_10000"
+      },
+      "components": {
+        "minecraft:equippable": {
+          "slot": "head"
+        }
+      },
+      "java_base_item": "minecraft:leather_helmet",
+      "model": "minecraft:leather_helmet"
+    },
+    "j2b:survival_shields_obsidian_shield_10000": {
+      "bedrock_options": {
+        "allow_offhand": true,
+        "display_handheld": false,
+        "icon": "j2b_survival_shields_obsidian_shield_10000"
+      },
+      "components": null,
+      "java_base_item": "minecraft:shield",
+      "model": "minecraft:shield"
+    },
+    "j2b:weapons_ak47_10002": {
+      "bedrock_options": {
+        "allow_offhand": true,
+        "display_handheld": true,
+        "icon": "j2b_weapons_ak47_10002"
+      },
+      "components": null,
+      "java_base_item": "minecraft:golden_sword",
+      "model": "minecraft:golden_sword"
+    }
+  }
+}

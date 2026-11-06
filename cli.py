@@ -61,6 +61,11 @@ def build_arg_parser() -> argparse.ArgumentParser:
         help="Inventory icon resolution in px: 3D item icons are rendered at this size and square 2D icons are NEAREST-upscaled to it (default: 128).",
     )
     parser.add_argument(
+        "--report",
+        default=None,
+        help="Write a detailed asset-by-asset conversion_report.json to the specified file path.",
+    )
+    parser.add_argument(
         "--summary-json",
         default=None,
         help="Write a JSON conversion summary report to the specified file path.",
@@ -90,6 +95,7 @@ def main(argv: list[str] | None = None) -> int:
         bedrock_overlays=args.bedrock_overlays,
         filter_gui_font_glyphs=not args.allow_gui_font_glyphs,
         icon_size=args.icon_size,
+        report_path=args.report,
     )
 
     print(f"✅ Conversion completed for '{result.pack_meta.name}'")
@@ -104,6 +110,11 @@ def main(argv: list[str] | None = None) -> int:
     print(f"   • Bedrock .mcpack : {result.mcpack_path}")
     print(f"   • Geyser v2 Map   : {result.mappings_v2_path}")
     print(f"   • Geyser v1 Map   : {result.mappings_v1_path}")
+    if result.report:
+        counts = result.report.to_dict().get("summary_by_status", {})
+        print(f"   • Asset Statuses  : {counts.get('converted', 0)} converted, {counts.get('approximated', 0)} approximated, {counts.get('skipped', 0)} skipped")
+    if args.report:
+        print(f"   • Detailed Report : {args.report}")
 
     if args.summary_json:
         summary_data = {

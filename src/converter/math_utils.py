@@ -173,8 +173,19 @@ def build_display_animation(
                     pos_sign=(1, 1, -1), default_rot=[0.1, 0.1, 0.1]))
 
     # Head slot: Java renders head items at 0.625 of model size before the display transform.
+    head_cfg = display_settings.get("head")
+    if head_cfg and "translation" in head_cfg:
+        trans = head_cfg["translation"]
+        # Data-driven compensation for wall-mounted models (e.g. wall paintings with ty <= -25 and tz <= -10):
+        # In Java, ArmorStand head items use tz=-12 which pushes models into the wall block;
+        # in Bedrock, multiplying by 0.625 produces -7.5px (~0.5 block) protrusion off the wall.
+        # Adding +12.0 brings Z translation to 0.0 so the back face sits flush on the wall surface.
+        if float(trans[1]) <= -25.0 and float(trans[2]) <= -10.0:
+            head_cfg = dict(head_cfg)
+            head_cfg["translation"] = [float(trans[0]), float(trans[1]), float(trans[2]) + 12.0]
+
     head_axis = _axis_bones(
-        root_bone, display_settings.get("head"), pos_sign=(-1, 1, 1),
+        root_bone, head_cfg, pos_sign=(-1, 1, 1),
         pos_scale=0.625, default_scale=0.625,
     )
     if f"{root_bone}_x" not in head_axis:
