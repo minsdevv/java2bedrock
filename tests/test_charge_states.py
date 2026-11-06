@@ -107,7 +107,7 @@ class TestChargeStates(unittest.TestCase):
             att_file = out / "TestBow_bedrock" / "attachables" / "j2b" / "custom_magic_bow_777.json"
             self.assertTrue(att_file.is_file(), "Bow attachable should be generated")
             att = json.loads(att_file.read_text(encoding="utf-8"))["minecraft:attachable"]["description"]
-            self.assertEqual(att["render_controllers"], ["controller.render.bow"])
+            self.assertEqual(att["render_controllers"], ["controller.render.item_default"])
             self.assertIn("bow_pulling_0", att["textures"])
             self.assertIn("bow_pulling_1", att["textures"])
             self.assertIn("bow_pulling_2", att["textures"])

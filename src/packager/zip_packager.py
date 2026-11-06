@@ -22,8 +22,6 @@ from ..converter.attachable_builder import (
     build_bedrock_attachable,
     build_bedrock_bow_attachable,
     build_bedrock_crossbow_attachable,
-    build_bow_render_controller,
-    build_crossbow_render_controller,
 )
 from ..converter.block_builder import (
     build_bedrock_block_geometry,
@@ -534,31 +532,6 @@ def convert_java_pack(
                             "texture": icon_key,
                         },
                         **({"minecraft:hand_equipped": True} if is_weapon_or_tool else {}),
-                        **(
-                            {
-                                "minecraft:shooter": {
-                                    "ammunition": [{"item": "minecraft:arrow"}],
-                                    "charge_on_draw": True,
-                                    "scale_power_by_draw_duration": True,
-                                }
-                            }
-                            if is_bow
-                            else {}
-                        ),
-                        **(
-                            {
-                                "minecraft:shooter": {
-                                    "ammunition": [
-                                        {"item": "minecraft:arrow"},
-                                        {"item": "minecraft:firework_rocket"},
-                                    ],
-                                    "charge_on_draw": True,
-                                    "scale_power_by_draw_duration": True,
-                                }
-                            }
-                            if is_crossbow
-                            else {}
-                        ),
                     },
                 },
             }
@@ -874,21 +847,6 @@ def convert_java_pack(
                 json.dumps(build_furniture_render_controller(), indent=2),
                 encoding="utf-8",
             )
-
-        # Generate shared Bedrock render controllers for bows & crossbows
-        bow_rc_path = bedrock_dir / "render_controllers" / "bow.render_controllers.json"
-        bow_rc_path.parent.mkdir(parents=True, exist_ok=True)
-        bow_rc_path.write_text(
-            json.dumps(build_bow_render_controller(), indent=2),
-            encoding="utf-8",
-        )
-
-        cb_rc_path = bedrock_dir / "render_controllers" / "crossbow.render_controllers.json"
-        cb_rc_path.parent.mkdir(parents=True, exist_ok=True)
-        cb_rc_path.write_text(
-            json.dumps(build_crossbow_render_controller(), indent=2),
-            encoding="utf-8",
-        )
 
         # --- Custom Sounds (sounds/sound_definitions.json) ---
         total_sounds, sound_warnings = convert_java_pack_sounds(
