@@ -535,11 +535,23 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
                                 expected_bool=bool(int(v) == 1 if isinstance(v, (int, float)) else v),
                             )
                         )
-                    elif k == "cast":
-                        if bool(int(v) == 1 if isinstance(v, (int, float)) else v):
-                            skip_override = True
-                    elif k in ("pull", "pulling", "throwing", "blocking", "time", "angle", "cooldown", "charged", "firework", "lefthanded"):
-                        # Secondary animation state frame (e.g. bow pulling frame 0/1/2)
+                    elif k in ("pulling", "blocking", "throwing", "charged", "firework", "cast"):
+                        rules.append(
+                            ItemPredicateRule(
+                                kind="condition",
+                                property_name=k,
+                                expected_bool=bool(int(v) == 1 if isinstance(v, (int, float)) else v),
+                            )
+                        )
+                    elif k in ("pull", "cooldown", "angle", "time"):
+                        rules.append(
+                            ItemPredicateRule(
+                                kind="range_dispatch",
+                                property_name=k,
+                                threshold=float(v),
+                            )
+                        )
+                    elif k in ("lefthanded",):
                         if float(v) > 0:
                             skip_override = True
                 if skip_override or not rules:
@@ -555,7 +567,18 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
                 )
                 if parsed:
                     if parsed.custom_model_data_int is not None:
-                        key = (parsed.java_base_item, parsed.custom_model_data_int)
+                        pred_sig = tuple(
+                            sorted(
+                                (
+                                    r.kind,
+                                    r.property_name,
+                                    float(r.threshold) if r.threshold is not None else 0.0,
+                                    bool(r.expected_bool) if r.expected_bool is not None else False,
+                                )
+                                for r in parsed.predicates
+                            )
+                        )
+                        key = (parsed.java_base_item, parsed.custom_model_data_int, pred_sig)
                         if key in seen_item_keys:
                             continue
                         seen_item_keys.add(key)

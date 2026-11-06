@@ -61,6 +61,7 @@ from ..parser.item_parser import (
 )
 from ..parser.pack_meta import PackMetadata, parse_pack_meta
 from ..report import AssetStatus, ConversionReport
+from ..converter.flipbook_builder import build_flipbook_entry, parse_mcmeta_animation
 
 
 NAMESPACE_J2B = uuid.UUID("6ba7b810-9dad-11d1-80b4-00c04fd430c8")
@@ -299,6 +300,7 @@ def convert_java_pack(
             }
         )
         item_texture_atlas: Dict[str, Any] = {}
+        flipbook_entries: List[Dict[str, Any]] = []
         count_3d = 0
         count_2d = 0
 
@@ -429,10 +431,18 @@ def convert_java_pack(
                             outputs=[str(attach_path.relative_to(bedrock_dir))],
                         )
 
+            icon_key = f"j2b_{model.short_name}"
             if not model.is_3d:
                 _upscale_icon(tex_dest, icon_size)
-
-            icon_key = f"j2b_{model.short_name}"
+                tex_src = _select_primary_texture(pack_root, model)
+                if tex_src and tex_src.is_file():
+                    mcmeta_p = tex_src.with_name(f"{tex_src.name}.mcmeta")
+                    if mcmeta_p.is_file():
+                        fb_params = parse_mcmeta_animation(mcmeta_p)
+                        if fb_params:
+                            flipbook_entries.append(
+                                build_flipbook_entry(tex_rel_no_ext, icon_key, fb_params)
+                            )
             item_texture_atlas[icon_key] = {
                 "textures": tex_rel_no_ext,
             }
@@ -473,6 +483,18 @@ def convert_java_pack(
             blk_tex_dest = bedrock_dir / f"{blk_tex_rel}.png"
             blk_tex_dest.parent.mkdir(parents=True, exist_ok=True)
 
+            # Check if block uses an animated texture with .mcmeta
+            blk_mcmeta_p: Optional[Path] = None
+            primary_blk_tex: Optional[Path] = None
+            if blk.is_unit_cube and blk.textures:
+                first_ref = next(iter(blk.textures.values()))
+                cand_p = resolve_texture_path(pack_root, first_ref, allow_vanilla_fallback=False)
+                if cand_p and cand_p.is_file():
+                    cand_meta = cand_p.with_name(f"{cand_p.name}.mcmeta")
+                    if cand_meta.is_file():
+                        blk_mcmeta_p = cand_meta
+                        primary_blk_tex = cand_p
+
             temp_blk_model = ParsedJavaModel(
                 model_id=blk.model_id,
                 java_base_item=blk.base_block,
@@ -482,9 +504,21 @@ def convert_java_pack(
                 textures=blk.textures,
                 elements=blk.elements,
             )
-            atlas_img, tex_w, tex_h, uv_offsets = build_model_texture_atlas(
-                pack_root, temp_blk_model
-            )
+            if blk_mcmeta_p and primary_blk_tex:
+                shutil.copy2(primary_blk_tex, blk_tex_dest)
+                atlas_img = None
+                tex_w, tex_h = 16, 16
+                uv_offsets = {}
+                fb_params = parse_mcmeta_animation(blk_mcmeta_p)
+                if fb_params:
+                    terrain_key = f"j2b_block_{blk.short_name}"
+                    flipbook_entries.append(
+                        build_flipbook_entry(blk_tex_rel, terrain_key, fb_params)
+                    )
+            else:
+                atlas_img, tex_w, tex_h, uv_offsets = build_model_texture_atlas(
+                    pack_root, temp_blk_model
+                )
             if atlas_img is not None:
                 atlas_img.save(blk_tex_dest)
             else:
@@ -700,6 +734,12 @@ def convert_java_pack(
         item_tex_path = bedrock_dir / "textures" / "item_texture.json"
         item_tex_path.parent.mkdir(parents=True, exist_ok=True)
         item_tex_path.write_text(json.dumps(item_tex_doc, indent=2), encoding="utf-8")
+
+        # Write textures/flipbook_textures.json if animated textures exist
+        if flipbook_entries:
+            fb_path = bedrock_dir / "textures" / "flipbook_textures.json"
+            fb_path.parent.mkdir(parents=True, exist_ok=True)
+            fb_path.write_text(json.dumps(flipbook_entries, indent=2), encoding="utf-8")
 
         # --- Merge User Bedrock Overlays (Custom UI, Texts, Title Logo, Splash, etc.) ---
         if bedrock_overlays:
