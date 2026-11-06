@@ -180,3 +180,83 @@ def build_bedrock_crossbow_attachable(
             },
         },
     }
+
+
+def build_bow_render_controller() -> Dict[str, Any]:
+    """Generate Bedrock render_controllers/bow.render_controllers.json."""
+    return {
+        "format_version": "1.8.0",
+        "render_controllers": {
+            "controller.render.bow": {
+                "arrays": {
+                    "geometries": {
+                        "Array.bow_geos": [
+                            "Geometry.default",
+                            "Geometry.bow_pulling_0",
+                            "Geometry.bow_pulling_1",
+                            "Geometry.bow_pulling_2",
+                        ]
+                    },
+                    "textures": {
+                        "Array.bow_textures": [
+                            "Texture.default",
+                            "Texture.bow_pulling_0",
+                            "Texture.bow_pulling_1",
+                            "Texture.bow_pulling_2",
+                        ]
+                    },
+                },
+                "geometry": "Array.bow_geos[query.main_hand_item_use_duration > 0.0f ? (variable.charge_amount >= 1.0f ? 3 : (variable.charge_amount > 0.65f ? 2 : 1)) : 0]",
+                "materials": [
+                    {
+                        "*": "Material.default",
+                    }
+                ],
+                "textures": [
+                    "Array.bow_textures[query.main_hand_item_use_duration > 0.0f ? (variable.charge_amount >= 1.0f ? 3 : (variable.charge_amount > 0.65f ? 2 : 1)) : 0]"
+                ],
+            }
+        },
+    }
+
+
+def build_crossbow_render_controller() -> Dict[str, Any]:
+    """Generate Bedrock render_controllers/crossbow.render_controllers.json."""
+    return {
+        "format_version": "1.8.0",
+        "render_controllers": {
+            "controller.render.crossbow": {
+                "arrays": {
+                    "geometries": {
+                        "Array.crossbow_geos": [
+                            "Geometry.default",
+                            "Geometry.crossbow_pulling_0",
+                            "Geometry.crossbow_pulling_1",
+                            "Geometry.crossbow_pulling_2",
+                            "Geometry.crossbow_arrow",
+                            "Geometry.crossbow_rocket",
+                        ]
+                    },
+                    "textures": {
+                        "Array.crossbow_textures": [
+                            "Texture.default",
+                            "Texture.crossbow_pulling_0",
+                            "Texture.crossbow_pulling_1",
+                            "Texture.crossbow_pulling_2",
+                            "Texture.crossbow_arrow",
+                            "Texture.crossbow_rocket",
+                        ]
+                    },
+                },
+                "geometry": "Array.crossbow_geos[query.main_hand_item_use_duration > 0.0f ? (variable.charge_amount >= 1.0f ? 3 : (variable.charge_amount > 0.58f ? 2 : 1)) : (query.is_item_charged ? 4 : 0)]",
+                "materials": [
+                    {
+                        "*": "Material.default",
+                    }
+                ],
+                "textures": [
+                    "Array.crossbow_textures[query.main_hand_item_use_duration > 0.0f ? (variable.charge_amount >= 1.0f ? 3 : (variable.charge_amount > 0.58f ? 2 : 1)) : (query.is_item_charged ? 4 : 0)]"
+                ],
+            }
+        },
+    }

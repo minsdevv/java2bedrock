@@ -343,10 +343,14 @@ def render_model_isometric(
     def rotate_normal(norm: Tuple[float, float, float]) -> float:
         return _rotate(norm[0], norm[1], norm[2])[2]
 
+    render_scale = 2
+    render_size = size * render_scale
+    half = render_size / 2.0
+
     # Dynamic scaling: compute projected bounding box to fit slot perfectly
     if is_standard_iso:
         max_dim = max(max_x - min_x, max_y - min_y, max_z - min_z, 1.0)
-        scale = (size * 0.88) / (max_dim * 1.57)
+        scale = (render_size * 0.88) / (max_dim * 1.57)
     else:
         bbox_corners = [
             (min_x, min_y, min_z), (max_x, min_y, min_z),
@@ -358,7 +362,7 @@ def render_model_isometric(
         span_x = max(p[0] for p in proj_corners) - min(p[0] for p in proj_corners)
         span_y = max(p[1] for p in proj_corners) - min(p[1] for p in proj_corners)
         span_max = max(span_x, span_y, 1.0)
-        scale = (size * 0.90) / span_max
+        scale = (render_size * 0.90) / span_max
 
     # Face definitions with 3D normal vector & vertex winding order matching UV [top-left, top-right, bottom-right, bottom-left]
     face_defs = {
@@ -378,6 +382,35 @@ def render_model_isometric(
             (x1, y1, z1), (x2, y1, z1), (x2, y2, z1), (x1, y2, z1),
             (x1, y1, z2), (x2, y1, z2), (x2, y2, z2), (x1, y2, z2),
         ]
+
+        # Apply Blockbench / Minecraft element rotation around origin
+        rot_cfg = el.get("rotation")
+        if rot_cfg and float(rot_cfg.get("angle", 0.0)) != 0.0:
+            angle_deg = float(rot_cfg["angle"])
+            axis = str(rot_cfg.get("axis", "y")).lower()
+            orig = [float(c) for c in rot_cfg.get("origin", [8.0, 8.0, 8.0])]
+            rad = math.radians(angle_deg)
+            cos_a = math.cos(rad)
+            sin_a = math.sin(rad)
+
+            def _rot_elem_pt(pt: Tuple[float, float, float], ox: float, oy: float, oz: float) -> Tuple[float, float, float]:
+                px, py, pz = pt[0] - ox, pt[1] - oy, pt[2] - oz
+                if axis == "x":
+                    return ox + px, oy + py * cos_a - pz * sin_a, oz + py * sin_a + pz * cos_a
+                elif axis == "y":
+                    return ox + px * cos_a + pz * sin_a, oy + py, oz - px * sin_a + pz * cos_a
+                elif axis == "z":
+                    return ox + px * cos_a - py * sin_a, oy + px * sin_a + py * cos_a, oz + pz
+                return pt
+
+            v = [_rot_elem_pt(pt, orig[0], orig[1], orig[2]) for pt in v]
+
+            def _rot_elem_vec(vec: Tuple[float, float, float]) -> Tuple[float, float, float]:
+                return _rot_elem_pt(vec, 0.0, 0.0, 0.0)
+        else:
+            def _rot_elem_vec(vec: Tuple[float, float, float]) -> Tuple[float, float, float]:
+                return vec
+
         faces = el.get("faces", {})
         for f_name, f_data in faces.items():
             if f_name not in face_defs or not isinstance(f_data, dict):
@@ -385,7 +418,8 @@ def render_model_isometric(
             idx_list, normal_vec, shade = face_defs[f_name]
 
             # 3D Normal Back-face Culling: only faces pointing toward the camera are visible
-            if rotate_normal(normal_vec) <= 0.05:
+            rotated_norm = _rot_elem_vec(normal_vec)
+            if rotate_normal(rotated_norm) <= 0.05:
                 continue
 
             pts_proj = [project_point(v[i]) for i in idx_list]
@@ -408,9 +442,8 @@ def render_model_isometric(
 
     quads.sort(key=lambda q: q["avg_z"])
 
-    canvas = Image.new("RGBA", (size, size), (0, 0, 0, 0))
+    canvas = Image.new("RGBA", (render_size, render_size), (0, 0, 0, 0))
     draw = ImageDraw.Draw(canvas)
-    half = size / 2.0
 
     for q in quads:
         pts_2d = [(half + p[0] * scale, half - p[1] * scale) for p in q["pts_proj"]]
@@ -429,6 +462,11 @@ def render_model_isometric(
             box = (max(0, min(u1, u2)), max(0, min(v1, v2)), min(tw, max(u1, u2)), min(th, max(v1, v2)))
             if box[2] > box[0] and box[3] > box[1]:
                 sub = tex.crop(box)
+                # Handle UV horizontal/vertical flips
+                if u1 > u2:
+                    sub = sub.transpose(Image.Transpose.FLIP_LEFT_RIGHT)
+                if v1 > v2:
+                    sub = sub.transpose(Image.Transpose.FLIP_TOP_BOTTOM)
             else:
                 sub = tex
 
@@ -452,11 +490,10 @@ def render_model_isometric(
                 params = _solve_affine([(0, 0), (sw, 0), (0, sh)], [pts_2d[0], pts_2d[1], pts_2d[3]])
                 if params:
                     try:
-                        warped = sub_shaded.transform(canvas.size, Image.Transform.AFFINE, params, resample=Image.Resampling.NEAREST)
+                        warped = sub_shaded.transform(canvas.size, Image.Transform.AFFINE, params, resample=Image.Resampling.BILINEAR)
                         mask = Image.new("L", canvas.size, 0)
                         ImageDraw.Draw(mask).polygon(pts_2d, fill=255)
                         canvas.paste(warped, (0, 0), mask)
-                        draw.polygon(pts_2d, fill=None, outline=(0, 0, 0, 45))
                         painted = True
                     except Exception:
                         painted = False
@@ -481,6 +518,9 @@ def render_model_isometric(
                 fill_color[3],
             )
             draw.polygon(pts_2d, fill=fill_color, outline=outline_color)
+
+    if render_scale > 1:
+        canvas = canvas.resize((size, size), Image.Resampling.LANCZOS)
 
     # Check if anything was rendered
     if canvas.split()[3].getextrema()[1] == 0:

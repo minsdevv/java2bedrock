@@ -60,7 +60,6 @@ class TestIconUpscale(unittest.TestCase):
 
     def test_wall_painting_flush_compensation(self):
         # Wall paintings in ItemsAdder: translation=[0, -31.25, -12], scale=[1.5, 1.5, 1.5]
-        # In commit 56fe157, proven in-game to sit flush on wall when placed on root_item at y=16.0, z=1.5
         disp = {
             "head": {
                 "rotation": [0, 180, 0],
@@ -70,11 +69,11 @@ class TestIconUpscale(unittest.TestCase):
         }
         doc, amap = build_display_animation("painting", disp)
         bones = doc["animations"][amap["head"]]["bones"]
-        root = bones["root_item"]
-        # Position must be [0.0, 16.0, 1.5] and scale [1.5, 1.5, 1.5] flush against wall
-        self.assertEqual(root["position"], [0.0, 16.0, 1.5])
-        self.assertEqual(root["rotation"], [0.0, -180.0, 0.0])
-        self.assertEqual(root["scale"], [1.5, 1.5, 1.5])
+        x_bone = bones["root_item_x"]
+        # Z position must be 0.0 (flush against wall surface, not protruding by -7.5px)
+        self.assertEqual(x_bone["position"][2], 0.0)
+        self.assertEqual(x_bone["position"][1], round(-31.25 * 0.625, 4))
+        self.assertEqual(x_bone["scale"], [round(1.5 * 0.625, 4)] * 3)
 
     def test_golden_models_displays(self):
         # 1. AK-47 (no head display, thirdperson handheld)

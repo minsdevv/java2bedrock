@@ -159,54 +159,75 @@ def build_display_animation(
         anim_map[key] = f"{pre}.{key}"
 
     hand3 = {"rotation": [90, 0, 0], "position": [0, 13, -3]}
-    hand1 = {"rotation": [90, 60, -40], "position": [4, 10, 4], "scale": 1.5}
+
+    # Detect furniture / non-handheld block models
+    head_raw = display_settings.get("head", {})
+    head_trans = head_raw.get("translation", [0.0, 0.0, 0.0]) if isinstance(head_raw, dict) else [0.0, 0.0, 0.0]
+    is_furniture_item = (
+        (isinstance(head_trans, list) and len(head_trans) >= 2 and float(head_trans[1]) <= -10.0)
+        or any(k in short_name.lower() for k in ("furniture", "chair", "table", "fridge", "desk", "painting", "deco_"))
+    )
+
+    # First-person hand scale: 1.5 for weapons/tools, 0.25 for large furniture/blocks to prevent camera blockage
+    fp_scale = 0.25 if is_furniture_item else 1.5
+
+    hand1 = {"rotation": [90, 60, -40], "position": [4, 10, 4], "scale": fp_scale}
+    hand1_left = {"rotation": [90, -60, 40], "position": [-4, 10, 4], "scale": fp_scale}
+
+    # Left-hand display fallback: mirror right-hand settings if lefthand is omitted (Java spec)
+    tpl_cfg = display_settings.get("thirdperson_lefthand")
+    if not tpl_cfg and "thirdperson_righthand" in display_settings:
+        tpr = display_settings["thirdperson_righthand"]
+        tpr_rot = tpr.get("rotation", [0.0, 0.0, 0.0])
+        tpr_pos = tpr.get("translation", [0.0, 0.0, 0.0])
+        tpl_cfg = {
+            "rotation": [float(tpr_rot[0]), -float(tpr_rot[1]), -float(tpr_rot[2])],
+            "translation": [-float(tpr_pos[0]), float(tpr_pos[1]), float(tpr_pos[2])],
+            "scale": tpr.get("scale", [1.0, 1.0, 1.0]),
+        }
+
+    fpl_cfg = display_settings.get("firstperson_lefthand")
+    if not fpl_cfg and "firstperson_righthand" in display_settings:
+        fpr = display_settings["firstperson_righthand"]
+        fpr_rot = fpr.get("rotation", [0.0, 0.0, 0.0])
+        fpr_pos = fpr.get("translation", [0.0, 0.0, 0.0])
+        fpl_cfg = {
+            "rotation": [float(fpr_rot[0]), -float(fpr_rot[1]), -float(fpr_rot[2])],
+            "translation": [-float(fpr_pos[0]), float(fpr_pos[1]), float(fpr_pos[2])],
+            "scale": fpr.get("scale", [1.0, 1.0, 1.0]),
+        }
 
     add("third_person", dict(hand3),
         _axis_bones(root_bone, display_settings.get("thirdperson_righthand"), pos_sign=(-1, 1, 1)))
     add("third_person_left", dict(hand3),
-        _axis_bones(root_bone, display_settings.get("thirdperson_lefthand"), pos_sign=(1, 1, 1)))
+        _axis_bones(root_bone, tpl_cfg, pos_sign=(1, 1, 1)))
     add("first_person", dict(hand1),
         _axis_bones(root_bone, display_settings.get("firstperson_righthand"),
                     pos_sign=(-1, 1, -1), default_rot=[0.1, 0.1, 0.1]))
-    add("first_person_left", dict(hand1),
-        _axis_bones(root_bone, display_settings.get("firstperson_lefthand"),
+    add("first_person_left", dict(hand1_left),
+        _axis_bones(root_bone, fpl_cfg,
                     pos_sign=(1, 1, -1), default_rot=[0.1, 0.1, 0.1]))
 
     # Head slot:
     # Wall paintings and wall-mounted furniture (e.g. ItemsAdder furniture_big_painting with ty <= -20, tz <= -6):
-    # In commit 56fe157, the in-game verified pose placed them directly on root_bone at y=16.0, z=1.5
-    # with un-downscaled scale (h_scale), sitting flush against the wall face without the 0.5-block protrusion.
+    # Java head items on ArmorStand use tz=-12 which pushes models into the wall block;
+    # in Bedrock, multiplying by 0.625 produces -7.5px (~0.5 block) protrusion off the wall.
+    # Adding +12.0 brings Z translation to 0.0 so the back face sits flush on the wall surface.
     head_cfg = display_settings.get("head")
-    is_wall_mounted = False
     if head_cfg and "translation" in head_cfg:
         trans = head_cfg["translation"]
         if float(trans[1]) <= -20.0 and float(trans[2]) <= -6.0:
-            is_wall_mounted = True
+            head_cfg = dict(head_cfg)
+            head_cfg["translation"] = [float(trans[0]), float(trans[1]), float(trans[2]) + 12.0]
 
-    if is_wall_mounted and head_cfg:
-        h_trans = head_cfg.get("translation", [0.0, 0.0, 0.0])
-        h_rot = head_cfg.get("rotation", [0.0, 0.0, 0.0])
-        h_scale = head_cfg.get("scale", [1.0, 1.0, 1.0])
-        animations[f"{pre}.head"] = {
-            "loop": True,
-            "bones": {
-                root_bone: {
-                    "rotation": [round(-float(h_rot[0]), 4), round(-float(h_rot[1]), 4), round(float(h_rot[2]), 4)],
-                    "position": [round(-float(h_trans[0]), 4), 16.0, 1.5],
-                    "scale": [round(float(s), 4) for s in h_scale],
-                }
-            },
-        }
-        anim_map["head"] = f"{pre}.head"
-    else:
-        # Standard head slot: Java renders head items at 0.625 of model size before the display transform.
-        head_axis = _axis_bones(
-            root_bone, head_cfg, pos_sign=(-1, 1, 1),
-            pos_scale=0.625, default_scale=0.625,
-        )
-        if f"{root_bone}_x" not in head_axis:
-            head_axis[f"{root_bone}_x"] = {"scale": 0.625}
-        add("head", {"position": [0, 19.9, 0]}, head_axis)
+    # Standard head slot: Java renders head items at 0.625 of model size before the display transform.
+    head_axis = _axis_bones(
+        root_bone, head_cfg, pos_sign=(-1, 1, 1),
+        pos_scale=0.625, default_scale=0.625,
+    )
+    if f"{root_bone}_x" not in head_axis:
+        head_axis[f"{root_bone}_x"] = {"scale": 0.625}
+    add("head", {"position": [0, 19.9, 0]}, head_axis)
 
     animations["animation.j2b.disable"] = {
         "loop": True,
