@@ -146,7 +146,7 @@
               10,
               4
             ],
-            "scale": 0.25
+            "scale": 1.5
           },
           "root_item_x": {
             "rotation": [
@@ -173,7 +173,7 @@
               10,
               4
             ],
-            "scale": 0.25
+            "scale": 1.5
           },
           "root_item_y": {
             "rotation": [
@@ -2328,7 +2328,7 @@
       "bedrock_options": {
         "icon": "j2b_survival_sweet_stick_10003",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },
@@ -7528,7 +7528,7 @@
       "bedrock_options": {
         "icon": "j2b_weapons_clip_10012",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },
@@ -7552,7 +7552,7 @@
       "bedrock_options": {
         "icon": "j2b_music_blank_disc_10014",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },
@@ -7564,7 +7564,7 @@
       "bedrock_options": {
         "icon": "j2b_music_music_disc_electric_keys_10015",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },
@@ -7576,7 +7576,7 @@
       "bedrock_options": {
         "icon": "j2b_music_music_disc_cdk_sunday_10016",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },
@@ -7588,7 +7588,7 @@
       "bedrock_options": {
         "icon": "j2b_music_music_disc_vidian_aether_theor_10017",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },
@@ -7792,7 +7792,7 @@
       "bedrock_options": {
         "icon": "j2b_generic_coin_10034",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },
@@ -8056,7 +8056,7 @@
       "bedrock_options": {
         "icon": "j2b_generic_blue_key_10056",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },
@@ -8068,7 +8068,7 @@
       "bedrock_options": {
         "icon": "j2b_generic_light_blue_key_10057",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },
@@ -8080,7 +8080,7 @@
       "bedrock_options": {
         "icon": "j2b_generic_turquoise_key_10058",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },
@@ -8092,7 +8092,7 @@
       "bedrock_options": {
         "icon": "j2b_generic_purple_key_10059",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },
@@ -8104,7 +8104,7 @@
       "bedrock_options": {
         "icon": "j2b_generic_green_key_10060",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },
@@ -8116,7 +8116,7 @@
       "bedrock_options": {
         "icon": "j2b_generic_red_key_10061",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },
@@ -8128,7 +8128,7 @@
       "bedrock_options": {
         "icon": "j2b_generic_black_key_10062",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },
@@ -8140,7 +8140,7 @@
       "bedrock_options": {
         "icon": "j2b_generic_white_key_10063",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },
@@ -8152,7 +8152,7 @@
       "bedrock_options": {
         "icon": "j2b_generic_golden_key_10064",
         "allow_offhand": true,
-        "display_handheld": true
+        "display_handheld": false
       },
       "components": null
     },

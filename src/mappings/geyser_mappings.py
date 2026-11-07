@@ -58,12 +58,13 @@ VANILLA_WEAPONS_AND_TOOLS = {
 }
 
 NON_HANDHELD_KEYWORDS = (
-    "painting", "furniture", "deco", "hat", "cap", "mask", "fridge", "chair", "table", "crown", "glasses"
+    "painting", "furniture", "deco", "hat", "cap", "mask", "fridge", "chair", "table", "crown", "glasses",
+    "clip", "ammo", "magazine", "disc", "coin", "key",
 )
 
 WEAPON_TOOL_KEYWORDS = (
     "sword", "pickaxe", "axe", "shovel", "hoe", "weapon", "gun", "bow",
-    "crossbow", "trident", "rod", "stick", "staff", "wand", "spear", "dagger",
+    "crossbow", "trident", "rod", "staff", "wand", "spear", "dagger",
     "knife", "rifle", "pistol", "shotgun", "ak47", "handheld"
 )
 

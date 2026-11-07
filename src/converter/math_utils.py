@@ -176,8 +176,13 @@ def build_display_animation(
         for k in ("furniture", "chair", "table", "fridge", "desk", "painting", "deco_")
     )
 
-    # First-person hand scale: 1.5 for weapons/tools, 0.25 for large furniture/blocks
-    fp_scale = 0.25 if is_furniture_item else 1.5
+    # First-person hand scale: keep Kas-tle's standard 1.5 base scale on root_item so models
+    # that already define firstperson_righthand.scale (e.g. mini_fridge 0.5 -> net 0.75,
+    # wall_painting 0.2 -> net 0.30) are not double-shrunk to microscopic size (0.25 * 0.5 = 0.125).
+    # For furniture items that omit firstperson_righthand.scale altogether, apply vanilla block
+    # default_scale [0.4, 0.4, 0.4] on root_item_x (net 1.5 * 0.4 = 0.60).
+    fp_scale = 1.5
+    fp_default_scale: Optional[Any] = [0.4, 0.4, 0.4] if is_furniture_item else None
 
     hand1 = {"rotation": [90, 60, -40], "position": [4, 10, 4], "scale": fp_scale}
     hand1_left = {"rotation": [90, -60, 40], "position": [-4, 10, 4], "scale": fp_scale}
@@ -225,10 +230,10 @@ def build_display_animation(
         _axis_bones(root_bone, tpl_cfg, pos_sign=(1, 1, 1)))
     add("first_person", dict(hand1),
         _axis_bones(root_bone, fpr_cfg,
-                    pos_sign=(-1, 1, -1), default_rot=[0.1, 0.1, 0.1]))
+                    pos_sign=(-1, 1, -1), default_scale=fp_default_scale, default_rot=[0.1, 0.1, 0.1]))
     add("first_person_left", dict(hand1_left),
         _axis_bones(root_bone, fpl_cfg,
-                    pos_sign=(1, 1, -1), default_rot=[0.1, 0.1, 0.1]))
+                    pos_sign=(1, 1, -1), default_scale=fp_default_scale, default_rot=[0.1, 0.1, 0.1]))
 
     # Head slot:
     # Wall paintings (ItemsAdder ty<=-20, tz<=-6, typically tz=-12):
