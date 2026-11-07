@@ -51,18 +51,16 @@ class TestChargeStates(unittest.TestCase):
             # Should have all 4 states: idle + pulling 0, 1, 2
             self.assertEqual(len(bow_models), 4)
 
-            # Test Geyser v2 mappings output
+            # Geyser v2 rejects unsupported condition props (pulling/blocking/...).
+            # Only the idle CMD entry is emitted as type=legacy; pull frames are skipped.
             v2 = build_geyser_item_mappings_v2(bow_models)
             defs = v2["items"]["minecraft:bow"]
-            self.assertEqual(len(defs), 4)
-
-            # Check pulling_2 has both pulling condition and pull range_dispatch
-            pull2_def = next(d for d in defs if "dragon_bow_pull_2" in d["bedrock_identifier"])
-            preds = pull2_def["predicate"]
-            props = [p["property"] for p in preds]
-            self.assertIn("custom_model_data", props)
-            self.assertIn("pulling", props)
-            self.assertIn("pull", props)
+            self.assertEqual(len(defs), 1)
+            idle = defs[0]
+            self.assertEqual(idle["type"], "legacy")
+            self.assertEqual(idle["custom_model_data"], 501)
+            self.assertIn("dragon_bow", idle["bedrock_identifier"])
+            self.assertNotIn("pull", idle["bedrock_identifier"])
 
     def test_bow_attachable_generation(self):
         from PIL import Image
@@ -107,7 +105,8 @@ class TestChargeStates(unittest.TestCase):
             att_file = out / "TestBow_bedrock" / "attachables" / "j2b" / "custom_magic_bow_777.json"
             self.assertTrue(att_file.is_file(), "Bow attachable should be generated")
             att = json.loads(att_file.read_text(encoding="utf-8"))["minecraft:attachable"]["description"]
-            self.assertEqual(att["render_controllers"], ["controller.render.item_default"])
+            self.assertEqual(att["render_controllers"], ["controller.render.j2b_bow"])
+            self.assertTrue(any("bow_tex_idx" in s for s in att["scripts"]["pre_animation"]))
             self.assertIn("bow_pulling_0", att["textures"])
             self.assertIn("bow_pulling_1", att["textures"])
             self.assertIn("bow_pulling_2", att["textures"])
@@ -115,6 +114,10 @@ class TestChargeStates(unittest.TestCase):
             self.assertEqual(att["geometry"]["bow_pulling_2"], "geometry.bow_pulling_2")
             self.assertIn("wield", att["animations"])
             self.assertIn("wield_first_person_pull", att["animations"])
+            rc_path = out / "TestBow_bedrock" / "render_controllers" / "j2b_bow.render_controllers.json"
+            self.assertTrue(rc_path.is_file(), "j2b_bow render controller should be packaged")
+            rc = json.loads(rc_path.read_text(encoding="utf-8"))
+            self.assertIn("controller.render.j2b_bow", rc["render_controllers"])
 
 
 if __name__ == "__main__":

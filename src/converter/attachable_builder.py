@@ -14,9 +14,10 @@ def build_bedrock_attachable(
     geometry_id = f"geometry.j2b.{model.short_name}"
 
     # Slot variables are computed once per frame (Geyser sets c.item_slot to main_hand/off_hand/head).
+    # Accept both off_hand and offhand — Bedrock/Geyser versions differ.
     pre_animation = [
         "v.main_hand = c.item_slot == 'main_hand';",
-        "v.off_hand = c.item_slot == 'off_hand';",
+        "v.off_hand = c.item_slot == 'off_hand' || c.item_slot == 'offhand';",
         "v.head = c.item_slot == 'head';",
     ]
     animate_list = [
@@ -100,7 +101,12 @@ def build_bedrock_bow_attachable(
                 },
                 "scripts": {
                     "pre_animation": [
+                        # charge_amount drives the pull pose; bow_tex_idx selects pull textures.
+                        # Geyser custom bows do NOT advance query.get_animation_frame (vanilla RC),
+                        # so arrow-on-string (painted into bow_pulling_* PNGs) never appears unless
+                        # we index frames ourselves from use_duration / charge_amount.
                         "variable.charge_amount = math.clamp((query.main_hand_item_max_duration - (query.main_hand_item_use_duration - query.frame_alpha + 1.0)) / 10.0, 0.0, 1.0f);",
+                        "variable.bow_tex_idx = query.main_hand_item_use_duration == 0.0f ? 0.0 : math.min(3.0, math.floor(variable.charge_amount / 0.5 + 1.0));",
                     ],
                     "animate": [
                         "wield",
@@ -109,8 +115,9 @@ def build_bedrock_bow_attachable(
                         },
                     ],
                 },
+                # Unique RC name — do not override vanilla controller.render.bow.
                 "render_controllers": [
-                    "controller.render.item_default",
+                    "controller.render.j2b_bow",
                 ],
             },
         },
@@ -166,6 +173,7 @@ def build_bedrock_crossbow_attachable(
                 "scripts": {
                     "pre_animation": [
                         "variable.charge_amount = math.clamp((query.main_hand_item_max_duration - (query.main_hand_item_use_duration - query.frame_alpha + 1.0)) / 10.0, 0.0, 1.0f);",
+                        "variable.crossbow_tex_idx = query.main_hand_item_use_duration == 0.0f ? (query.is_item_charged ? 4.0 : 0.0) : math.min(3.0, math.floor(variable.charge_amount / 0.58 + 1.0));",
                     ],
                     "animate": [
                         "wield",
@@ -175,8 +183,86 @@ def build_bedrock_crossbow_attachable(
                     ],
                 },
                 "render_controllers": [
-                    "controller.render.item_default",
+                    "controller.render.j2b_crossbow",
                 ],
             },
+        },
+    }
+
+
+def build_j2b_bow_render_controller() -> Dict[str, Any]:
+    """Shared RC: switch bow pull textures/geos via variable.bow_tex_idx (not get_animation_frame)."""
+    return {
+        "format_version": "1.10.0",
+        "render_controllers": {
+            "controller.render.j2b_bow": {
+                "arrays": {
+                    "textures": {
+                        "array.bow_texture_frames": [
+                            "texture.default",
+                            "texture.bow_pulling_0",
+                            "texture.bow_pulling_1",
+                            "texture.bow_pulling_2",
+                        ]
+                    },
+                    "geometries": {
+                        "array.bow_geo_frames": [
+                            "geometry.default",
+                            "geometry.bow_pulling_0",
+                            "geometry.bow_pulling_1",
+                            "geometry.bow_pulling_2",
+                        ]
+                    },
+                },
+                "geometry": "array.bow_geo_frames[variable.bow_tex_idx]",
+                "materials": [
+                    {"*": "variable.is_enchanted ? material.enchanted : material.default"}
+                ],
+                "textures": [
+                    "array.bow_texture_frames[variable.bow_tex_idx]",
+                    "texture.enchanted",
+                ],
+            }
+        },
+    }
+
+
+def build_j2b_crossbow_render_controller() -> Dict[str, Any]:
+    """Shared RC for crossbow pull / charged frames via variable.crossbow_tex_idx."""
+    return {
+        "format_version": "1.10.0",
+        "render_controllers": {
+            "controller.render.j2b_crossbow": {
+                "arrays": {
+                    "textures": {
+                        "array.crossbow_texture_frames": [
+                            "texture.default",
+                            "texture.crossbow_pulling_0",
+                            "texture.crossbow_pulling_1",
+                            "texture.crossbow_pulling_2",
+                            "texture.crossbow_arrow",
+                            "texture.crossbow_rocket",
+                        ]
+                    },
+                    "geometries": {
+                        "array.crossbow_geo_frames": [
+                            "geometry.default",
+                            "geometry.crossbow_pulling_0",
+                            "geometry.crossbow_pulling_1",
+                            "geometry.crossbow_pulling_2",
+                            "geometry.crossbow_arrow",
+                            "geometry.crossbow_rocket",
+                        ]
+                    },
+                },
+                "geometry": "array.crossbow_geo_frames[variable.crossbow_tex_idx]",
+                "materials": [
+                    {"*": "variable.is_enchanted ? material.enchanted : material.default"}
+                ],
+                "textures": [
+                    "array.crossbow_texture_frames[variable.crossbow_tex_idx]",
+                    "texture.enchanted",
+                ],
+            }
         },
     }

@@ -102,41 +102,11 @@ def build_geyser_item_mappings_v2(models: List[ParsedJavaModel]) -> Dict[str, An
     for model in models:
         icon_name = f"j2b_{model.short_name}"
         is_handheld = is_model_handheld(model)
-
-        # In Geyser v2 mappings, 'model' in a single definition specifies the item's
-        # `minecraft:item_model` data component (which defaults to `java_base_item`,
-        # e.g. "minecraft:diamond_sword", unless overridden by a custom item_model).
-        item_model_component = model.java_base_item
-        for p in model.predicates:
-            if p.property_name == "item_model" and p.match_value:
-                raw_im = str(p.match_value)
-                item_model_component = raw_im if ":" in raw_im else f"minecraft:{raw_im}"
-                break
-
-        entry: Dict[str, Any] = {
-            "type": "definition",
-            "bedrock_identifier": model.bedrock_identifier,
-            "model": (
-                item_model_component
-                if ":" in item_model_component
-                else f"minecraft:{item_model_component}"
-            ),
-            "bedrock_options": {
-                "icon": icon_name,
-                "allow_offhand": True,
-                "display_handheld": is_handheld,
-            },
+        bedrock_options = {
+            "icon": icon_name,
+            "allow_offhand": True,
+            "display_handheld": is_handheld,
         }
-
-        # Filter out synthetic item_model match rules since 'model' field already specifies it
-        valid_preds = [
-            _serialize_predicate_v2(p)
-            for p in model.predicates
-            if p.property_name != "item_model"
-        ]
-        if valid_preds:
-            entry["predicate_strategy"] = "and"
-            entry["predicate"] = valid_preds
 
         components = dict(model.components) if model.components else {}
         is_weapon_or_tool = _has_kw(
@@ -154,10 +124,6 @@ def build_geyser_item_mappings_v2(models: List[ParsedJavaModel]) -> Dict[str, An
             )
             or (model.components and model.components.get("minecraft:equippable", {}).get("slot") == "head")
         )
-        is_furniture = any(
-            kw in model.model_id.lower()
-            for kw in ("iadeco:", "furniture", "mini_fridge", "chair", "table")
-        )
 
         if (
             model.is_3d
@@ -170,6 +136,71 @@ def build_geyser_item_mappings_v2(models: List[ParsedJavaModel]) -> Dict[str, An
             and is_wearable_head
         ):
             components["minecraft:equippable"] = {"slot": "head"}
+
+        # In Geyser v2 mappings, 'model' in a single definition specifies the item's
+        # `minecraft:item_model` data component (which defaults to `java_base_item`,
+        # e.g. "minecraft:diamond_sword", unless overridden by a custom item_model).
+        item_model_component = model.java_base_item
+        has_explicit_item_model = False
+        for p in model.predicates:
+            if p.property_name == "item_model" and p.match_value:
+                raw_im = str(p.match_value)
+                item_model_component = raw_im if ":" in raw_im else f"minecraft:{raw_im}"
+                has_explicit_item_model = True
+                break
+
+        # ItemsAdder-style stacks are still discriminated by custom_model_data numbers.
+        # On Geyser 2.x, pure CMD matchers must use type=legacy; type=definition expects a
+        # real item_model identity first and often fails to bind for CMD-only packs
+        # (see Geyser#6439). Keep definition for true item_model / multi-predicate items.
+        non_cmd_preds = [
+            p for p in model.predicates
+            if p.property_name not in ("item_model", "custom_model_data")
+        ]
+        use_legacy = (
+            model.custom_model_data_int is not None
+            and not has_explicit_item_model
+            and not non_cmd_preds
+        )
+
+        if use_legacy:
+            entry: Dict[str, Any] = {
+                "type": "legacy",
+                "bedrock_identifier": model.bedrock_identifier,
+                "custom_model_data": int(model.custom_model_data_int),
+                "bedrock_options": bedrock_options,
+            }
+        else:
+            entry = {
+                "type": "definition",
+                "bedrock_identifier": model.bedrock_identifier,
+                "model": (
+                    item_model_component
+                    if ":" in item_model_component
+                    else f"minecraft:{item_model_component}"
+                ),
+                "bedrock_options": bedrock_options,
+            }
+            # Geyser only accepts a subset of condition properties. Entries that rely on
+            # unsupported ones (pulling/blocking/charged/...) would make Geyser reject the
+            # whole vanilla-item group — skip those charge/block variants entirely.
+            geyser_condition_ok = {
+                "broken", "damaged", "custom_model_data", "has_component", "fishing_rod_cast",
+            }
+            if any(
+                p.kind == "condition" and p.property_name not in geyser_condition_ok
+                for p in model.predicates
+            ):
+                continue
+
+            valid_preds = [
+                _serialize_predicate_v2(p)
+                for p in model.predicates
+                if p.property_name != "item_model"
+            ]
+            if valid_preds:
+                entry["predicate_strategy"] = "and"
+                entry["predicate"] = valid_preds
 
         if components:
             entry["components"] = components

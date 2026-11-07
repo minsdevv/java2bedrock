@@ -1742,96 +1742,108 @@
   },
   "mappings": {
     "j2b:deco_mini_fridge_10162": {
-      "bedrock_options": {
-        "allow_offhand": true,
-        "display_handheld": false,
-        "icon": "j2b_deco_mini_fridge_10162"
-      },
-      "components": null,
       "java_base_item": "minecraft:paper",
-      "model": "minecraft:paper"
+      "type": "legacy",
+      "model": null,
+      "custom_model_data": 10162,
+      "bedrock_options": {
+        "icon": "j2b_deco_mini_fridge_10162",
+        "allow_offhand": true,
+        "display_handheld": false
+      },
+      "components": null
     },
     "j2b:dropbox_pack_diamond_sword_katana_1001": {
-      "bedrock_options": {
-        "allow_offhand": true,
-        "display_handheld": true,
-        "icon": "j2b_dropbox_pack_diamond_sword_katana_1001"
-      },
-      "components": null,
       "java_base_item": "minecraft:diamond_sword",
-      "model": "minecraft:diamond_sword"
+      "type": "legacy",
+      "model": null,
+      "custom_model_data": 1001,
+      "bedrock_options": {
+        "icon": "j2b_dropbox_pack_diamond_sword_katana_1001",
+        "allow_offhand": true,
+        "display_handheld": true
+      },
+      "components": null
     },
     "j2b:dropbox_pack_netherite_sword_dragon_1002": {
-      "bedrock_options": {
-        "allow_offhand": true,
-        "display_handheld": true,
-        "icon": "j2b_dropbox_pack_netherite_sword_dragon_1002"
-      },
-      "components": null,
       "java_base_item": "minecraft:netherite_sword",
-      "model": "minecraft:netherite_sword"
+      "type": "legacy",
+      "model": null,
+      "custom_model_data": 1002,
+      "bedrock_options": {
+        "icon": "j2b_dropbox_pack_netherite_sword_dragon_1002",
+        "allow_offhand": true,
+        "display_handheld": true
+      },
+      "components": null
     },
     "j2b:festivities_christmas_santa_hat_10033": {
+      "java_base_item": "minecraft:feather",
+      "type": "legacy",
+      "model": null,
+      "custom_model_data": 10033,
       "bedrock_options": {
+        "icon": "j2b_festivities_christmas_santa_hat_10033",
         "allow_offhand": true,
-        "display_handheld": false,
-        "icon": "j2b_festivities_christmas_santa_hat_10033"
+        "display_handheld": false
       },
       "components": {
         "minecraft:equippable": {
           "slot": "head"
         }
-      },
-      "java_base_item": "minecraft:feather",
-      "model": "minecraft:feather"
+      }
     },
     "j2b:festivities_halloween_witch_hat_10030": {
+      "java_base_item": "minecraft:feather",
+      "type": "legacy",
+      "model": null,
+      "custom_model_data": 10030,
       "bedrock_options": {
+        "icon": "j2b_festivities_halloween_witch_hat_10030",
         "allow_offhand": true,
-        "display_handheld": false,
-        "icon": "j2b_festivities_halloween_witch_hat_10030"
+        "display_handheld": false
       },
       "components": {
         "minecraft:equippable": {
           "slot": "head"
         }
-      },
-      "java_base_item": "minecraft:feather",
-      "model": "minecraft:feather"
+      }
     },
     "j2b:survival_bronze_helmet_10000": {
-      "bedrock_options": {
-        "allow_offhand": true,
-        "display_handheld": false,
-        "icon": "j2b_survival_bronze_helmet_10000"
-      },
-      "components": {
-        "minecraft:equippable": {
-          "slot": "head"
-        }
-      },
       "java_base_item": "minecraft:leather_helmet",
-      "model": "minecraft:leather_helmet"
+      "type": "legacy",
+      "model": null,
+      "custom_model_data": 10000,
+      "bedrock_options": {
+        "icon": "j2b_survival_bronze_helmet_10000",
+        "allow_offhand": true,
+        "display_handheld": false
+      },
+      "components": null
     },
     "j2b:survival_shields_obsidian_shield_10000": {
-      "bedrock_options": {
-        "allow_offhand": true,
-        "display_handheld": false,
-        "icon": "j2b_survival_shields_obsidian_shield_10000"
-      },
-      "components": null,
       "java_base_item": "minecraft:shield",
-      "model": "minecraft:shield"
+      "type": "legacy",
+      "model": null,
+      "custom_model_data": 10000,
+      "bedrock_options": {
+        "icon": "j2b_survival_shields_obsidian_shield_10000",
+        "allow_offhand": true,
+        "display_handheld": false
+      },
+      "components": null
     },
     "j2b:weapons_ak47_10002": {
-      "bedrock_options": {
-        "allow_offhand": true,
-        "display_handheld": true,
-        "icon": "j2b_weapons_ak47_10002"
-      },
-      "components": null,
       "java_base_item": "minecraft:golden_sword",
-      "model": "minecraft:golden_sword"
+      "type": "legacy",
+      "model": null,
+      "custom_model_data": 10002,
+      "bedrock_options": {
+        "icon": "j2b_weapons_ak47_10002",
+        "allow_offhand": true,
+        "display_handheld": true
+      },
+      "components": null
     }
   }
 }

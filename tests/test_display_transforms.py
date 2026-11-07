@@ -60,6 +60,7 @@ class TestIconUpscale(unittest.TestCase):
 
     def test_wall_painting_flush_compensation(self):
         # Wall paintings in ItemsAdder: translation=[0, -31.25, -12], scale=[1.5, 1.5, 1.5]
+        # Toward-wall Z: java_tz + 5 → -7; Y=0 (y=16 was ~1 block too high); full Java scale.
         disp = {
             "head": {
                 "rotation": [0, 180, 0],
@@ -69,11 +70,38 @@ class TestIconUpscale(unittest.TestCase):
         }
         doc, amap = build_display_animation("painting", disp)
         bones = doc["animations"][amap["head"]]["bones"]
-        x_bone = bones["root_item_x"]
-        # Z position must be 0.0 (flush against wall surface, not protruding by -7.5px)
-        self.assertEqual(x_bone["position"][2], 0.0)
-        self.assertEqual(x_bone["position"][1], round(-31.25 * 0.625, 4))
-        self.assertEqual(x_bone["scale"], [round(1.5 * 0.625, 4)] * 3)
+        root = bones["root_item"]
+        self.assertEqual(root["position"], [0.0, 0.0, -7.0])
+        self.assertEqual(root["scale"], [1.5, 1.5, 1.5])
+        self.assertEqual(root["rotation"], [0.0, -180.0, 0.0])
+        self.assertNotIn("root_item_x", bones)
+
+    def test_battle_axe_not_furniture_fp_scale(self):
+        # Battle axe has decorative head ty=-14.5 but must keep weapon FP scale 1.5
+        disp = {
+            "head": {"translation": [4.5, -14.5, 5.5], "scale": [1.6, 1.6, 1.6]},
+            "firstperson_righthand": {"rotation": [0, -90, 25], "translation": [1.13, 3.2, 1.13], "scale": [0.68, 0.68, 0.68]},
+        }
+        doc, amap = build_display_animation("battle_axe", disp)
+        fp = doc["animations"][amap["first_person"]]["bones"]["root_item"]
+        self.assertEqual(fp["scale"], 1.5)
+
+    def test_lefthand_inherits_missing_scale(self):
+        disp = {
+            "thirdperson_righthand": {
+                "rotation": [0, 90, 0],
+                "translation": [0, 2.5, 1.75],
+                "scale": [1.5, 1.5, 1.5],
+            },
+            "thirdperson_lefthand": {
+                "rotation": [0, 90, 0],
+                "translation": [0, 1.5, 1],
+                # scale omitted on purpose (common in Java packs)
+            },
+        }
+        doc, amap = build_display_animation("katana", disp)
+        left = doc["animations"][amap["third_person_left"]]["bones"]["root_item_x"]
+        self.assertEqual(left["scale"], [1.5, 1.5, 1.5])
 
     def test_golden_models_displays(self):
         # 1. AK-47 (no head display, thirdperson handheld)

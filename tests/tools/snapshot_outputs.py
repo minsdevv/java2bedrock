@@ -23,7 +23,9 @@ def generate_snapshot(pack_dir: Path, mappings_path: Path) -> Dict[str, Any]:
                 if b_id:
                     snapshot["mappings"][b_id] = {
                         "java_base_item": base_item,
+                        "type": d.get("type"),
                         "model": d.get("model"),
+                        "custom_model_data": d.get("custom_model_data"),
                         "bedrock_options": d.get("bedrock_options"),
                         "components": d.get("components"),
                     }

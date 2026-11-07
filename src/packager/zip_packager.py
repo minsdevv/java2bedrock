@@ -1,10 +1,12 @@
 """Bedrock Resource Pack (.mcpack) Builder & Packager."""
 
 from dataclasses import dataclass, field
+import hashlib
 import json
 from pathlib import Path
 import re
 import shutil
+import time
 from typing import Any, Dict, List, Optional, Tuple, Union
 import uuid
 import zipfile
@@ -22,6 +24,8 @@ from ..converter.attachable_builder import (
     build_bedrock_attachable,
     build_bedrock_bow_attachable,
     build_bedrock_crossbow_attachable,
+    build_j2b_bow_render_controller,
+    build_j2b_crossbow_render_controller,
 )
 from ..converter.block_builder import (
     build_bedrock_block_geometry,
@@ -171,10 +175,19 @@ def merge_bedrock_overlay(overlay_path: Union[str, Path], target_dir: Path) -> L
     return warnings
 
 
-def build_bedrock_manifest(name: str, description: str) -> Dict[str, Any]:
-    """Generate a Bedrock format_version 2 manifest.json with deterministic UUIDs."""
+def build_bedrock_manifest(
+    name: str,
+    description: str,
+    version: Optional[List[int]] = None,
+) -> Dict[str, Any]:
+    """Generate a Bedrock format_version 2 manifest.json with deterministic UUIDs.
+
+    ``version`` should change whenever pack contents change so Bedrock/Geyser
+    clients re-download instead of keeping a cached broken pack.
+    """
     header_uuid = str(uuid.uuid5(NAMESPACE_J2B, f"header:{name}:{description}"))
     module_uuid = str(uuid.uuid5(NAMESPACE_J2B, f"module:{name}:{description}"))
+    ver = version or [1, 0, 0]
 
     return {
         "format_version": 2,
@@ -182,7 +195,7 @@ def build_bedrock_manifest(name: str, description: str) -> Dict[str, Any]:
             "name": name,
             "description": description,
             "uuid": header_uuid,
-            "version": [1, 0, 0],
+            "version": ver,
             "min_engine_version": [1, 21, 0],
         },
         "modules": [
@@ -190,7 +203,7 @@ def build_bedrock_manifest(name: str, description: str) -> Dict[str, Any]:
                 "type": "resources",
                 "description": f"{name} Bedrock Resources",
                 "uuid": module_uuid,
-                "version": [1, 0, 0],
+                "version": list(ver),
             }
         ],
     }
@@ -510,43 +523,14 @@ def convert_java_pack(
                 "textures": tex_rel_no_ext,
             }
 
-            # Generate Bedrock client Item Definition (items/*.json)
-            armor_slot = detect_armor_slot(model)
-            is_bow = model.java_base_item == "minecraft:bow" or model.java_base_item.endswith(":bow")
-            is_crossbow = model.java_base_item == "minecraft:crossbow" or model.java_base_item.endswith(":crossbow")
-            is_weapon_or_tool = (
-                is_bow or is_crossbow or
-                any(kw in model.java_base_item for kw in ("sword", "pickaxe", "axe", "shovel", "hoe", "shield", "trident", "spear"))
-            )
-            item_def: Dict[str, Any] = {
-                "format_version": "1.20.20",
-                "minecraft:item": {
-                    "description": {
-                        "identifier": model.bedrock_identifier,
-                        "menu_category": {
-                            "category": "equipment" if (armor_slot or is_weapon_or_tool) else "items",
-                        },
-                    },
-                    "components": {
-                        "minecraft:icon": {
-                            "texture": icon_key,
-                        },
-                        **({"minecraft:hand_equipped": True} if is_weapon_or_tool else {}),
-                    },
-                },
-            }
-            # Link block_placer component if item represents a custom block (enables 3D dropped model)
-            matching_blk = block_lookup.get(model.short_name) or block_by_model.get(model.model_id.lstrip('_'))
-            if matching_blk:
-                item_def["minecraft:item"]["components"]["minecraft:block_placer"] = {
-                    "block": matching_blk.bedrock_identifier,
-                }
-
-            items_path = bedrock_dir / "items" / bedrock_ns / f"{model.short_name}.json"
-            items_path.parent.mkdir(parents=True, exist_ok=True)
-            items_path.write_text(json.dumps(item_def, indent=2), encoding="utf-8")
+            # NOTE: Do NOT emit RP items/*.json for Geyser packs.
+            # Geyser registers custom items over the network; stale RP item defs
+            # (format 1.20.20) can prevent attachables from binding on modern Bedrock.
+            # Icons come from textures/item_texture.json + bedrock_options.icon.
 
         # --- Generate Specialized Attachables for Bows & Crossbows ---
+        wrote_bow_attachable = False
+        wrote_crossbow_attachable = False
         for model in models:
             is_bow = model.java_base_item == "minecraft:bow" or model.java_base_item.endswith(":bow")
             is_crossbow = model.java_base_item == "minecraft:crossbow" or model.java_base_item.endswith(":crossbow")
@@ -577,6 +561,7 @@ def convert_java_pack(
                 attach_path = bedrock_dir / "attachables" / bedrock_ns / f"{model.short_name}.json"
                 attach_path.parent.mkdir(parents=True, exist_ok=True)
                 attach_path.write_text(json.dumps(bow_attach_doc, indent=2), encoding="utf-8")
+                wrote_bow_attachable = True
                 report.add_asset(
                     f"{model.bedrock_identifier}:bow",
                     "attachable",
@@ -616,12 +601,28 @@ def convert_java_pack(
                 attach_path = bedrock_dir / "attachables" / bedrock_ns / f"{model.short_name}.json"
                 attach_path.parent.mkdir(parents=True, exist_ok=True)
                 attach_path.write_text(json.dumps(cb_attach_doc, indent=2), encoding="utf-8")
+                wrote_crossbow_attachable = True
                 report.add_asset(
                     f"{model.bedrock_identifier}:crossbow",
                     "attachable",
                     AssetStatus.CONVERTED,
                     outputs=[str(attach_path.relative_to(bedrock_dir))],
                 )
+
+        # Shared RCs that index pull frames via charge_amount (Geyser custom items
+        # do not reliably advance query.get_animation_frame used by vanilla RCs).
+        if wrote_bow_attachable:
+            bow_rc_path = bedrock_dir / "render_controllers" / "j2b_bow.render_controllers.json"
+            bow_rc_path.parent.mkdir(parents=True, exist_ok=True)
+            bow_rc_path.write_text(
+                json.dumps(build_j2b_bow_render_controller(), indent=2), encoding="utf-8"
+            )
+        if wrote_crossbow_attachable:
+            cb_rc_path = bedrock_dir / "render_controllers" / "j2b_crossbow.render_controllers.json"
+            cb_rc_path.parent.mkdir(parents=True, exist_ok=True)
+            cb_rc_path.write_text(
+                json.dumps(build_j2b_crossbow_render_controller(), indent=2), encoding="utf-8"
+            )
 
         # --- Phase 3A: Custom Blocks ---
         terrain_texture_atlas: Dict[str, Any] = {}
@@ -867,7 +868,12 @@ def convert_java_pack(
         )
 
         # Write manifest.json
-        manifest_doc = build_bedrock_manifest(meta.name, meta.description)
+        # Bump patch version from content fingerprint so Bedrock clients re-download.
+        content_fp = hashlib.md5(
+            f"{meta.name}|{len(models)}|{count_3d}|{int(time.time()) // 60}".encode()
+        ).hexdigest()
+        pack_version = [1, int(content_fp[:2], 16) % 100, int(content_fp[2:4], 16) % 100]
+        manifest_doc = build_bedrock_manifest(meta.name, meta.description, version=pack_version)
         (bedrock_dir / "manifest.json").write_text(
             json.dumps(manifest_doc, indent=2), encoding="utf-8"
         )
@@ -894,9 +900,16 @@ def convert_java_pack(
                 overlay_warns = merge_bedrock_overlay(overlay_path, bedrock_dir)
                 warnings.extend(overlay_warns)
 
-        # Write Geyser Custom Mappings (v2, v1, blocks, furniture_registry, mob_registry)
+        # Write Geyser Custom Mappings (v2, v1 backup, blocks, furniture_registry, mob_registry)
         mappings_dir = output_dir / "custom_mappings"
         mappings_dir.mkdir(parents=True, exist_ok=True)
+
+        # Geyser loads EVERY *.json in custom_mappings. A leftover items_v1.json
+        # registers the same CMD predicates under geyser_custom:* and conflicts with
+        # items_v2.json (j2b:*), so Bedrock never binds our 3D attachables.
+        stale_v1 = mappings_dir / "items_v1.json"
+        if stale_v1.exists():
+            stale_v1.unlink()
 
         mappings_v2 = build_geyser_item_mappings_v2(models)
         mappings_v2_path = mappings_dir / "items_v2.json"
