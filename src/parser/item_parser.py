@@ -315,10 +315,10 @@ def _walk_modern_item_node(
     node_type = node.get("type", "")
     _, clean_type = normalize_identifier(node_type)
 
-    if clean_type == "model":
-        model_ref = node.get("model")
+    if clean_type in ("model", "special"):
+        model_ref = node.get("model") if clean_type == "model" else node.get("base")
         tints = node.get("tints", [])
-        if model_ref:
+        if isinstance(model_ref, str) and model_ref:
             cmd_int = None
             for p in inherited_predicates:
                 if p.property_name == "custom_model_data" and p.threshold is not None:
@@ -366,44 +366,68 @@ def _walk_modern_item_node(
     elif clean_type == "select":
         _, prop_name = normalize_identifier(node.get("property", "custom_model_data"))
         index = int(node.get("index", 0))
-        for case in node.get("cases", []):
-            when_val = case.get("when")
-            when_list = when_val if isinstance(when_val, list) else [when_val]
-            for val in when_list:
-                rule = ItemPredicateRule(
-                    kind="match",
-                    property_name=prop_name,
-                    match_value=val,
-                    index=index,
+        if prop_name == "display_context":
+            # display_context is a rendering context (gui/ground/fixed vs hand), not an item stack predicate
+            fallback = node.get("fallback")
+            if isinstance(fallback, dict):
+                _walk_modern_item_node(
+                    pack_root, fallback, java_base_item, inherited_predicates, results, bedrock_ns
                 )
+            for case in node.get("cases", []):
                 child_model = case.get("model")
                 if isinstance(child_model, dict):
                     _walk_modern_item_node(
-                        pack_root,
-                        child_model,
-                        java_base_item,
-                        inherited_predicates + [rule],
-                        results,
-                        bedrock_ns,
+                        pack_root, child_model, java_base_item, inherited_predicates, results, bedrock_ns
                     )
+        else:
+            for case in node.get("cases", []):
+                when_val = case.get("when")
+                when_list = when_val if isinstance(when_val, list) else [when_val]
+                for val in when_list:
+                    rule = ItemPredicateRule(
+                        kind="match",
+                        property_name=prop_name,
+                        match_value=val,
+                        index=index,
+                    )
+                    child_model = case.get("model")
+                    if isinstance(child_model, dict):
+                        _walk_modern_item_node(
+                            pack_root,
+                            child_model,
+                            java_base_item,
+                            inherited_predicates + [rule],
+                            results,
+                            bedrock_ns,
+                        )
+            fallback = node.get("fallback")
+            if isinstance(fallback, dict) and inherited_predicates:
+                _walk_modern_item_node(
+                    pack_root, fallback, java_base_item, inherited_predicates, results, bedrock_ns
+                )
 
     elif clean_type == "condition":
         _, prop_name = normalize_identifier(node.get("property", "custom_model_data"))
         index = int(node.get("index", 0))
-        for branch_key, expected in (("on_true", True), ("on_false", False)):
+        # Walk on_false first so standby/idle models are registered before active/using_item variants
+        for branch_key, expected in (("on_false", False), ("on_true", True)):
             branch = node.get(branch_key)
             if isinstance(branch, dict):
-                rule = ItemPredicateRule(
-                    kind="condition",
-                    property_name=prop_name,
-                    expected_bool=expected,
-                    index=index,
-                )
+                if prop_name in ("using_item", "throwing", "blocking", "pulling") and not expected:
+                    next_preds = list(inherited_predicates)
+                else:
+                    rule = ItemPredicateRule(
+                        kind="condition",
+                        property_name=("throwing" if prop_name == "using_item" and java_base_item.endswith("trident") else prop_name),
+                        expected_bool=expected,
+                        index=index,
+                    )
+                    next_preds = inherited_predicates + [rule]
                 _walk_modern_item_node(
                     pack_root,
                     branch,
                     java_base_item,
-                    inherited_predicates + [rule],
+                    next_preds,
                     results,
                     bedrock_ns,
                 )
@@ -468,7 +492,18 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
                 )
                 for m in found:
                     if m.custom_model_data_int is not None:
-                        key = (m.java_base_item, m.custom_model_data_int)
+                        pred_sig = tuple(
+                            sorted(
+                                (
+                                    r.kind,
+                                    r.property_name,
+                                    float(r.threshold) if r.threshold is not None else 0.0,
+                                    bool(r.expected_bool) if r.expected_bool is not None else False,
+                                )
+                                for r in m.predicates
+                            )
+                        )
+                        key = (m.java_base_item, m.custom_model_data_int, pred_sig)
                         if key in seen_item_keys:
                             continue
                         seen_item_keys.add(key)
@@ -496,7 +531,10 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
             if not isinstance(overrides, list):
                 continue
 
-            java_base_item = f"minecraft:{rel_item}"
+            if rel_item in ("trident_in_hand", "trident_throwing"):
+                java_base_item = "minecraft:trident"
+            else:
+                java_base_item = f"minecraft:{rel_item}"
             for ov in overrides:
                 if not isinstance(ov, dict):
                     continue
@@ -506,6 +544,14 @@ def parse_java_pack_items(pack_root: Path, bedrock_ns: str = "j2b") -> List[Pars
                     continue
 
                 rules: List[ItemPredicateRule] = []
+                if rel_item == "trident_throwing" and "throwing" not in pred_dict:
+                    rules.append(
+                        ItemPredicateRule(
+                            kind="condition",
+                            property_name="throwing",
+                            expected_bool=True,
+                        )
+                    )
                 cmd_int: Optional[int] = None
                 skip_override = False
                 for k, v in pred_dict.items():

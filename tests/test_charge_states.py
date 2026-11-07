@@ -119,6 +119,77 @@ class TestChargeStates(unittest.TestCase):
             rc = json.loads(rc_path.read_text(encoding="utf-8"))
             self.assertIn("controller.render.j2b_bow", rc["render_controllers"])
 
+    def test_trident_states_and_thrown_entity(self):
+        from PIL import Image
+        from src.packager.zip_packager import convert_java_pack
+
+        with tempfile.TemporaryDirectory() as td:
+            root = Path(td)
+            item_models = root / "assets" / "minecraft" / "models" / "item"
+            custom_models = root / "assets" / "custom" / "models" / "item"
+            textures_dir = root / "assets" / "custom" / "textures" / "item"
+            item_models.mkdir(parents=True, exist_ok=True)
+            custom_models.mkdir(parents=True, exist_ok=True)
+            textures_dir.mkdir(parents=True, exist_ok=True)
+
+            Image.new("RGBA", (16, 16), (0, 200, 255, 255)).save(textures_dir / "phonglon.png")
+
+            (item_models / "trident.json").write_text(
+                json.dumps({
+                    "parent": "item/handheld",
+                    "overrides": [
+                        {"predicate": {"custom_model_data": 1001}, "model": "custom:item/phonglon"},
+                        {"predicate": {"throwing": 1, "custom_model_data": 1001}, "model": "custom:item/phonglon_throwing"},
+                    ],
+                }),
+                encoding="utf-8",
+            )
+            spear_model = {
+                "textures": {"0": "custom:item/phonglon"},
+                "elements": [
+                    {
+                        "from": [7.5, -10.0, 7.5],
+                        "to": [8.5, 28.0, 8.5],
+                        "faces": {
+                            "north": {"uv": [0, 0, 2, 16], "texture": "#0"},
+                            "south": {"uv": [0, 0, 2, 16], "texture": "#0"},
+                            "east": {"uv": [0, 0, 2, 16], "texture": "#0"},
+                            "west": {"uv": [0, 0, 2, 16], "texture": "#0"},
+                        },
+                    }
+                ],
+                "display": {
+                    "thirdperson_righthand": {"translation": [0, 2.25, 0.25]},
+                    "firstperson_righthand": {"translation": [2.25, -1.5, 0], "scale": [0.75, 0.75, 0.75]},
+                },
+            }
+            (custom_models / "phonglon.json").write_text(json.dumps(spear_model), encoding="utf-8")
+            throw_model = json.loads(json.dumps(spear_model))
+            throw_model["display"]["thirdperson_righthand"] = {"rotation": [180, 0, 0], "translation": [0, -2.25, -0.25]}
+            (custom_models / "phonglon_throwing.json").write_text(json.dumps(throw_model), encoding="utf-8")
+            (root / "pack.mcmeta").write_text(json.dumps({"pack": {"pack_format": 48, "description": "TridentTest"}}))
+
+            out = root / "output"
+            convert_java_pack(root, out, pack_name="TestTrident")
+
+            att_file = out / "TestTrident_bedrock" / "attachables" / "j2b" / "custom_phonglon_1001.json"
+            self.assertTrue(att_file.is_file(), "Trident attachable should be generated")
+            att = json.loads(att_file.read_text(encoding="utf-8"))["minecraft:attachable"]["description"]
+            self.assertEqual(att["render_controllers"], ["controller.render.j2b_trident"])
+            self.assertIn("third_person_throw", att["animations"])
+            self.assertIn("first_person_throw", att["animations"])
+
+            thrown_ent = out / "TestTrident_bedrock" / "entity" / "thrown_trident.entity.json"
+            self.assertTrue(thrown_ent.is_file(), "Thrown trident entity should be generated")
+            tr_reg = out / "custom_mappings" / "trident_registry.json"
+            self.assertTrue(tr_reg.is_file(), "trident_registry.json should be generated")
+
+            v2 = json.loads((out / "custom_mappings" / "items_v2.json").read_text(encoding="utf-8"))
+            self.assertIn("minecraft:trident", v2["items"])
+            self.assertEqual(len(v2["items"]["minecraft:trident"]), 1)
+            self.assertEqual(v2["items"]["minecraft:trident"][0]["type"], "legacy")
+            self.assertEqual(v2["items"]["minecraft:trident"][0]["custom_model_data"], 1001)
+
 
 if __name__ == "__main__":
     unittest.main()

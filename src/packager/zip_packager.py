@@ -24,8 +24,13 @@ from ..converter.attachable_builder import (
     build_bedrock_attachable,
     build_bedrock_bow_attachable,
     build_bedrock_crossbow_attachable,
+    build_bedrock_trident_attachable,
     build_j2b_bow_render_controller,
     build_j2b_crossbow_render_controller,
+    build_j2b_trident_render_controller,
+    build_thrown_trident_entity,
+    build_thrown_trident_geometry,
+    build_trident_registry,
 )
 from ..converter.block_builder import (
     build_bedrock_block_geometry,
@@ -40,7 +45,7 @@ from ..converter.furniture_builder import (
     build_furniture_render_controller,
 )
 from ..converter.geometry_builder import build_bedrock_geometry
-from ..converter.math_utils import build_display_animation
+from ..converter.math_utils import build_display_animation, build_trident_animation
 from ..converter.mob_builder import (
     build_bedrock_mob_animation_controller,
     build_bedrock_mob_animations,
@@ -315,6 +320,34 @@ def _find_crossbow_variants(
     return pull0, pull1, pull2, arrow, rocket
 
 
+def _find_trident_throwing_variant(
+    models: List[ParsedJavaModel], standby: ParsedJavaModel
+) -> Optional[ParsedJavaModel]:
+    cmd = standby.custom_model_data_int
+
+    def score(cand: ParsedJavaModel) -> int:
+        s = 0
+        if cmd is not None and cand.custom_model_data_int == cmd:
+            s += 10
+        sb_tokens = set(re.split(r"[^a-z0-9]+", standby.short_name.lower()))
+        cand_tokens = set(re.split(r"[^a-z0-9]+", cand.short_name.lower()))
+        s += len(sb_tokens.intersection(cand_tokens))
+        return s
+
+    candidates = [
+        m for m in models
+        if m != standby and m.java_base_item.endswith("trident")
+        and score(m) >= (11 if cmd is not None else 2)
+    ]
+    return next(
+        (
+            m for m in candidates
+            if any(p.property_name in ("throwing", "using_item") and p.expected_bool is not False for p in m.predicates)
+        ),
+        None,
+    )
+
+
 def convert_java_pack(
     input_path: Path,
     output_dir: Path,
@@ -528,13 +561,20 @@ def convert_java_pack(
             # (format 1.20.20) can prevent attachables from binding on modern Bedrock.
             # Icons come from textures/item_texture.json + bedrock_options.icon.
 
-        # --- Generate Specialized Attachables for Bows & Crossbows ---
+        # --- Generate Specialized Attachables for Bows, Crossbows & Tridents ---
         wrote_bow_attachable = False
         wrote_crossbow_attachable = False
+        wrote_trident_attachable = False
+        trident_models: List[ParsedJavaModel] = []
+        wrote_default_thrown_trident = False
         for model in models:
             is_bow = model.java_base_item == "minecraft:bow" or model.java_base_item.endswith(":bow")
             is_crossbow = model.java_base_item == "minecraft:crossbow" or model.java_base_item.endswith(":crossbow")
-            is_standby = not any(p.property_name in ("pulling", "pull", "charged", "firework") for p in model.predicates)
+            is_trident = model.java_base_item == "minecraft:trident" or model.java_base_item.endswith(":trident")
+            is_standby = not any(
+                p.property_name in ("pulling", "pull", "charged", "firework", "throwing", "using_item")
+                for p in model.predicates
+            )
 
             if is_bow and is_standby:
                 pull0, pull1, pull2 = _find_bow_pull_variants(models, model)
@@ -608,6 +648,115 @@ def convert_java_pack(
                     AssetStatus.CONVERTED,
                     outputs=[str(attach_path.relative_to(bedrock_dir))],
                 )
+            elif is_trident and is_standby:
+                throwing_var = _find_trident_throwing_variant(models, model)
+                sb_tex = (
+                    f"textures/models/entity/{bedrock_ns}/{model.short_name}"
+                    if model.is_3d
+                    else f"textures/items/{bedrock_ns}/{model.short_name}"
+                )
+                th_tex = (
+                    (
+                        f"textures/models/entity/{bedrock_ns}/{throwing_var.short_name}"
+                        if throwing_var.is_3d
+                        else f"textures/items/{bedrock_ns}/{throwing_var.short_name}"
+                    )
+                    if throwing_var
+                    else sb_tex
+                )
+                sb_geo = f"geometry.{bedrock_ns}.{model.short_name}" if model.is_3d else "geometry.trident"
+                th_geo = (
+                    f"geometry.{bedrock_ns}.{throwing_var.short_name}"
+                    if (throwing_var and throwing_var.is_3d)
+                    else sb_geo
+                )
+
+                anim_doc, anim_map = build_trident_animation(
+                    model.short_name,
+                    model.display,
+                    throwing_display=throwing_var.display if throwing_var else None,
+                )
+                anim_path = bedrock_dir / "animations" / bedrock_ns / f"{model.short_name}.animation.json"
+                anim_path.parent.mkdir(parents=True, exist_ok=True)
+                anim_path.write_text(json.dumps(anim_doc, indent=2), encoding="utf-8")
+
+                tr_attach_doc = build_bedrock_trident_attachable(
+                    model,
+                    sb_tex,
+                    th_tex,
+                    anim_map,
+                    standby_geo=sb_geo,
+                    throwing_geo=th_geo,
+                )
+                attach_path = bedrock_dir / "attachables" / bedrock_ns / f"{model.short_name}.json"
+                attach_path.parent.mkdir(parents=True, exist_ok=True)
+                attach_path.write_text(json.dumps(tr_attach_doc, indent=2), encoding="utf-8")
+                wrote_trident_attachable = True
+                trident_models.append(model)
+
+                if model.is_3d:
+                    base_geo_path = (
+                        bedrock_dir / "models" / "entity" / bedrock_ns / f"{model.short_name}.geo.json"
+                    )
+                    if base_geo_path.is_file():
+                        base_geo_doc = json.loads(base_geo_path.read_text(encoding="utf-8"))
+                        proj_geo_id = f"geometry.{bedrock_ns}.thrown_{model.short_name}"
+                        proj_geo_doc = build_thrown_trident_geometry(base_geo_doc, geo_id=proj_geo_id)
+                        proj_geo_path = (
+                            bedrock_dir
+                            / "models"
+                            / "entity"
+                            / "projectiles"
+                            / bedrock_ns
+                            / f"{model.short_name}.geo.json"
+                        )
+                        proj_geo_path.parent.mkdir(parents=True, exist_ok=True)
+                        proj_geo_path.write_text(json.dumps(proj_geo_doc, indent=2), encoding="utf-8")
+
+                        proj_ent_doc = build_thrown_trident_entity(
+                            f"{bedrock_ns}:thrown_{model.short_name}",
+                            sb_tex,
+                            geo_id=proj_geo_id,
+                        )
+                        proj_ent_path = (
+                            bedrock_dir
+                            / "entity"
+                            / "projectiles"
+                            / bedrock_ns
+                            / f"{model.short_name}.entity.json"
+                        )
+                        proj_ent_path.parent.mkdir(parents=True, exist_ok=True)
+                        proj_ent_path.write_text(json.dumps(proj_ent_doc, indent=2), encoding="utf-8")
+
+                        if not wrote_default_thrown_trident:
+                            default_trident_ent = build_thrown_trident_entity(
+                                "minecraft:thrown_trident",
+                                sb_tex,
+                                geo_id=proj_geo_id,
+                            )
+                            default_ent_path = bedrock_dir / "entity" / "thrown_trident.entity.json"
+                            default_ent_path.parent.mkdir(parents=True, exist_ok=True)
+                            default_ent_path.write_text(
+                                json.dumps(default_trident_ent, indent=2), encoding="utf-8"
+                            )
+                            vanilla_trident_attach = json.loads(json.dumps(tr_attach_doc))
+                            vanilla_trident_attach["minecraft:attachable"]["description"]["identifier"] = "minecraft:trident"
+                            vanilla_trident_path = bedrock_dir / "attachables" / "trident.json"
+                            vanilla_trident_path.parent.mkdir(parents=True, exist_ok=True)
+                            vanilla_trident_path.write_text(
+                                json.dumps(vanilla_trident_attach, indent=2), encoding="utf-8"
+                            )
+                            item_texture_atlas["trident"] = {
+                                "textures": f"textures/items/{bedrock_ns}/{model.short_name}",
+                            }
+                            wrote_default_thrown_trident = True
+
+                report.add_asset(
+                    f"{model.bedrock_identifier}:trident",
+                    "attachable",
+                    AssetStatus.CONVERTED,
+                    outputs=[str(attach_path.relative_to(bedrock_dir))],
+                )
 
         # Shared RCs that index pull frames via charge_amount (Geyser custom items
         # do not reliably advance query.get_animation_frame used by vanilla RCs).
@@ -622,6 +771,12 @@ def convert_java_pack(
             cb_rc_path.parent.mkdir(parents=True, exist_ok=True)
             cb_rc_path.write_text(
                 json.dumps(build_j2b_crossbow_render_controller(), indent=2), encoding="utf-8"
+            )
+        if wrote_trident_attachable:
+            tr_rc_path = bedrock_dir / "render_controllers" / "j2b_trident.render_controllers.json"
+            tr_rc_path.parent.mkdir(parents=True, exist_ok=True)
+            tr_rc_path.write_text(
+                json.dumps(build_j2b_trident_render_controller(), indent=2), encoding="utf-8"
             )
 
         # --- Phase 3A: Custom Blocks ---
@@ -941,6 +1096,13 @@ def convert_java_pack(
             mob_registry_path = mappings_dir / "mob_registry.json"
             mob_registry_path.write_text(
                 json.dumps(mob_reg_doc, indent=2), encoding="utf-8"
+            )
+
+        if trident_models:
+            trident_reg_doc = build_trident_registry(trident_models, bedrock_ns=bedrock_ns)
+            trident_registry_path = mappings_dir / "trident_registry.json"
+            trident_registry_path.write_text(
+                json.dumps(trident_reg_doc, indent=2), encoding="utf-8"
             )
 
         # Package .mcpack

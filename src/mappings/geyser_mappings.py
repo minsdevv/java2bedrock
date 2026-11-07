@@ -63,7 +63,7 @@ NON_HANDHELD_KEYWORDS = (
 
 WEAPON_TOOL_KEYWORDS = (
     "sword", "pickaxe", "axe", "shovel", "hoe", "weapon", "gun", "bow",
-    "crossbow", "rod", "stick", "staff", "wand", "spear", "dagger",
+    "crossbow", "trident", "rod", "stick", "staff", "wand", "spear", "dagger",
     "knife", "rifle", "pistol", "shotgun", "ak47", "handheld"
 )
 
@@ -111,9 +111,9 @@ def build_geyser_item_mappings_v2(models: List[ParsedJavaModel]) -> Dict[str, An
         components = dict(model.components) if model.components else {}
         is_weapon_or_tool = _has_kw(
             (
-                "weapon", "gun", "sword", "shield", "bow", "axe", "pickaxe",
-                "shovel", "hoe", "spear", "staff", "knife", "dagger", "shotgun",
-                "revolver", "pistol", "rifle", "ak47"
+                "weapon", "gun", "sword", "shield", "bow", "crossbow", "trident",
+                "axe", "pickaxe", "shovel", "hoe", "spear", "staff", "knife",
+                "dagger", "shotgun", "revolver", "pistol", "rifle", "ak47"
             ),
             model.model_id, model.short_name,
         )

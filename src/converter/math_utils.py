@@ -275,3 +275,51 @@ def build_display_animation(
 
     doc = {"format_version": "1.8.0", "animations": animations}
     return doc, anim_map
+
+
+def build_trident_animation(
+    short_name: str,
+    display_settings: Dict[str, Dict[str, List[float]]],
+    throwing_display: Optional[Dict[str, Dict[str, List[float]]]] = None,
+    root_bone: str = "root_item",
+) -> Tuple[Dict[str, Any], Dict[str, str]]:
+    """Build Bedrock attachable animations for a 3D Trident (including 3rd/1st person throw poses)."""
+    doc, anim_map = build_display_animation(short_name, display_settings, root_bone=root_bone)
+    animations = doc["animations"]
+    pre = f"animation.j2b.{short_name}"
+
+    tpr_cfg = display_settings.get("thirdperson_righthand")
+    fpr_cfg = display_settings.get("firstperson_righthand")
+    throw_tpr = throwing_display.get("thirdperson_righthand") if throwing_display else None
+    throw_fpr = throwing_display.get("firstperson_righthand") if throwing_display else None
+
+    if throw_tpr and throw_tpr != tpr_cfg:
+        tp_throw_root = {"rotation": [90, 0, 0], "position": [0, 13, -3]}
+        tp_throw_axis = _axis_bones(root_bone, throw_tpr, pos_sign=(-1, 1, 1))
+    else:
+        # Bedrock's brandish_spear raises the player's arm overhead (~180 deg), so invert root X/Z
+        tp_throw_root = {"rotation": [-90, 0, 0], "position": [0, 13, 3]}
+        tp_throw_axis = _axis_bones(root_bone, tpr_cfg, pos_sign=(-1, 1, 1))
+
+    tp_bones: Dict[str, Any] = {root_bone: tp_throw_root}
+    tp_bones.update(tp_throw_axis)
+    animations[f"{pre}.third_person_throw"] = {"loop": True, "bones": tp_bones}
+    anim_map["third_person_throw"] = f"{pre}.third_person_throw"
+
+    if throw_fpr and throw_fpr != fpr_cfg:
+        fp_throw_root = {"rotation": [90, 60, -40], "position": [4, 10, 4], "scale": 1.5}
+        fp_throw_axis = _axis_bones(
+            root_bone, throw_fpr, pos_sign=(-1, 1, -1), default_rot=[0.1, 0.1, 0.1]
+        )
+    else:
+        fp_throw_root = {"rotation": [55, 50, -35], "position": [2, 13, 2], "scale": 1.5}
+        fp_throw_axis = _axis_bones(
+            root_bone, fpr_cfg, pos_sign=(-1, 1, -1), default_rot=[0.1, 0.1, 0.1]
+        )
+
+    fp_bones: Dict[str, Any] = {root_bone: fp_throw_root}
+    fp_bones.update(fp_throw_axis)
+    animations[f"{pre}.first_person_throw"] = {"loop": True, "bones": fp_bones}
+    anim_map["first_person_throw"] = f"{pre}.first_person_throw"
+
+    return doc, anim_map

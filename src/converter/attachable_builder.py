@@ -1,6 +1,7 @@
 """Builder for Bedrock Attachables (attachables/*.json)."""
 
-from typing import Any, Dict, Optional
+import copy
+from typing import Any, Dict, List, Optional
 from ..parser.item_parser import ParsedJavaModel
 
 
@@ -265,4 +266,187 @@ def build_j2b_crossbow_render_controller() -> Dict[str, Any]:
                 ],
             }
         },
+    }
+
+
+def build_bedrock_trident_attachable(
+    model: ParsedJavaModel,
+    standby_tex_rel: str,
+    throwing_tex_rel: str,
+    animation_map: Dict[str, str],
+    standby_geo: Optional[str] = None,
+    throwing_geo: Optional[str] = None,
+    default_material: str = "entity_alphatest",
+) -> Dict[str, Any]:
+    """Build a Bedrock 1.10.0 attachable for a Trident supporting held & throwing states."""
+    sb_geo = standby_geo or f"geometry.j2b.{model.short_name}"
+    th_geo = throwing_geo or sb_geo
+
+    pre_animation = [
+        "v.main_hand = c.item_slot == 'main_hand';",
+        "v.off_hand = c.item_slot == 'off_hand' || c.item_slot == 'offhand';",
+        "v.head = c.item_slot == 'head';",
+        "v.is_throwing = query.main_hand_item_use_duration > 0.0f || query.is_using_item;",
+        "variable.trident_tex_idx = v.is_throwing ? 1.0 : 0.0;",
+    ]
+    animate_list = [
+        {"third_person": "v.main_hand && !c.is_first_person && !v.is_throwing"},
+        {"third_person_throw": "v.main_hand && !c.is_first_person && v.is_throwing"},
+        {"third_person_left": "v.off_hand && !c.is_first_person"},
+        {"head": "v.head && !c.is_first_person"},
+        {"first_person": "v.main_hand && c.is_first_person && !v.is_throwing"},
+        {"first_person_throw": "v.main_hand && c.is_first_person && v.is_throwing"},
+        {"first_person_left": "v.off_hand && c.is_first_person"},
+        {"first_person_head": "v.head && c.is_first_person"},
+    ]
+    anim_map = dict(animation_map)
+    anim_map["first_person_head"] = anim_map.get("disable", "animation.j2b.disable")
+    anim_map.pop("disable", None)
+
+    return {
+        "format_version": "1.10.0",
+        "minecraft:attachable": {
+            "description": {
+                "identifier": model.bedrock_identifier,
+                "materials": {
+                    "default": default_material,
+                    "enchanted": "entity_alphatest_glint",
+                },
+                "textures": {
+                    "default": standby_tex_rel,
+                    "trident_throwing": throwing_tex_rel,
+                    "enchanted": "textures/misc/enchanted_item_glint",
+                },
+                "geometry": {
+                    "default": sb_geo,
+                    "trident_throwing": th_geo,
+                },
+                "animations": anim_map,
+                "scripts": {
+                    "pre_animation": pre_animation,
+                    "animate": animate_list,
+                },
+                "render_controllers": [
+                    "controller.render.j2b_trident",
+                ],
+            },
+        },
+    }
+
+
+def build_j2b_trident_render_controller() -> Dict[str, Any]:
+    """Shared RC for switching trident standby vs throwing textures/geometries."""
+    return {
+        "format_version": "1.10.0",
+        "render_controllers": {
+            "controller.render.j2b_trident": {
+                "arrays": {
+                    "textures": {
+                        "array.trident_texture_frames": [
+                            "texture.default",
+                            "texture.trident_throwing",
+                        ]
+                    },
+                    "geometries": {
+                        "array.trident_geo_frames": [
+                            "geometry.default",
+                            "geometry.trident_throwing",
+                        ]
+                    },
+                },
+                "geometry": "array.trident_geo_frames[variable.trident_tex_idx]",
+                "materials": [
+                    {"*": "variable.is_enchanted ? material.enchanted : material.default"}
+                ],
+                "textures": [
+                    "array.trident_texture_frames[variable.trident_tex_idx]",
+                    "texture.enchanted",
+                ],
+            }
+        },
+    }
+
+
+def build_thrown_trident_geometry(
+    base_geo_doc: Dict[str, Any],
+    geo_id: str = "geometry.trident",
+) -> Dict[str, Any]:
+    """Wrap an item 3D geometry under Bedrock's 'pole' bone so animation.trident.move works in-flight."""
+    doc = copy.deepcopy(base_geo_doc)
+    geos = doc.get("minecraft:geometry", [])
+    if not geos:
+        return doc
+    geo = geos[0]
+    geo["description"]["identifier"] = geo_id
+    bones = geo.get("bones", [])
+    for b in bones:
+        b.pop("binding", None)
+        if b.get("name") == "root_item":
+            b["parent"] = "pole"
+            b["pivot"] = [0.0, 24.0, 0.0]
+            # Vanilla thrown_trident pole points downward along -Y before animation.trident.move flips it
+            b["rotation"] = [180.0, 0.0, 0.0]
+    pole_bone = {
+        "name": "pole",
+        "pivot": [0.0, 24.0, 0.0],
+    }
+    geo["bones"] = [pole_bone] + bones
+    return doc
+
+
+def build_thrown_trident_entity(
+    entity_id: str,
+    texture_rel_path: str,
+    geo_id: str = "geometry.trident",
+) -> Dict[str, Any]:
+    """Build a Bedrock client_entity definition for a thrown trident projectile."""
+    return {
+        "format_version": "1.10.0",
+        "minecraft:client_entity": {
+            "description": {
+                "identifier": entity_id,
+                "materials": {
+                    "default": "entity_alphatest",
+                    "enchanted": "entity_alphatest_glint",
+                },
+                "textures": {
+                    "default": texture_rel_path,
+                    "enchanted": "textures/misc/enchanted_item_glint",
+                },
+                "geometry": {
+                    "default": geo_id,
+                },
+                "animations": {
+                    "move": "animation.trident.move",
+                },
+                "scripts": {
+                    "animate": [
+                        "move",
+                    ]
+                },
+                "render_controllers": [
+                    "controller.render.item_default",
+                ],
+            }
+        },
+    }
+
+
+def build_trident_registry(models: List[ParsedJavaModel], bedrock_ns: str = "j2b") -> Dict[str, Any]:
+    """Build trident_registry.json for the Geyser Companion Extension to map thrown trident projectiles."""
+    entries: List[Dict[str, Any]] = []
+    for m in models:
+        entries.append(
+            {
+                "short_name": m.short_name,
+                "model_id": m.model_id,
+                "java_base_item": m.java_base_item,
+                "custom_model_data": m.custom_model_data_int,
+                "bedrock_item_identifier": m.bedrock_identifier,
+                "bedrock_entity_identifier": f"{bedrock_ns}:thrown_{m.short_name}",
+            }
+        )
+    return {
+        "format_version": 1,
+        "tridents": entries,
     }
